@@ -1,0 +1,13 @@
+# skills/ is served live as the ~/.agents/skills hub, so agents write runtime state
+# straight into this checkout. None of it is authored here, and none may be committed.
+
+# Claude Code moves deleted skills here. They can be private; this repository is public.
+skills/.trash/
+
+# Claude Code's cloud-synced skill cache: server-owned, re-downloaded on launch.
+skills/synced/
+
+# Codex regenerates its bundled system skills under a skills dir it can reach.
+skills/.system/
+
+.DS_Store

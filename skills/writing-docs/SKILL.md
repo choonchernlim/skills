@@ -1,34 +1,20 @@
 ---
 name: writing-docs
 description: >
-  Writes and rewrites Markdown documentation to one house style: project and
-  folder READMEs, docs/ guides typed as how-to, reference, or explanation, a
-  docs index with an onboarding path, a glossary, a requirements document,
-  and MADR-style ADRs. Use when asked to write or restructure a README or
-  the docs, document a folder or module, record a decision or ADR, write or
-  update requirements, or when documentation is bloated, inconsistent,
-  duplicated across files, or drifted from the code. Classifies the target,
-  audits it against fixed profiles, writes to hard line caps with one fixed
-  Mermaid diagram block, then verifies with scripts/lint_docs.py, renders
-  every diagram, and resolves every link. Supersedes readme-builder and
-  readme-arch.
+  Writes and rewrites Markdown documentation to one linted house style:
+  project and folder READMEs, docs/ guides (how-to, reference, explanation),
+  a docs index, a glossary, requirements, and MADR-style ADRs. Use when asked
+  to write or restructure a README or the docs, document a folder or module,
+  record a decision or ADR, write or update requirements, or when
+  documentation is bloated, inconsistent, duplicated across files, or
+  drifted from the code.
 ---
 
 # Writing Docs
 
 Produce Markdown documentation that a newly onboarded developer can read
-and maintain. This file is the index: classify the target, load its
-reference, follow the workflow, run the lint. The skill never writes specs
-or plans and never edits source code.
-
-## Workflow
-
-1. **Classify** the target and load its reference.
-2. **Audit** the existing content into findings and a disposition map.
-3. **Write** to the profile, within the caps.
-4. **Verify** with the lint, the renderer, and the link check.
-
-No content is deleted without a recorded landing spot.
+and maintain. Follow the four steps in order. Paths are relative to this
+skill's folder.
 
 ## Step 1: Classify
 
@@ -52,7 +38,7 @@ none, ask before writing.
 ## Step 2: Audit
 
 Run the lint first on the existing file and its siblings so the findings are
-mechanical, not impressions:
+mechanical, not impressions. Run the script; do not read it.
 
 ```bash
 python3 scripts/lint_docs.py docs/*.md README.md
@@ -91,16 +77,8 @@ Run every check on the final text of every touched file.
    python3 scripts/lint_docs.py docs/*.md docs/adrs/*.md README.md
    ```
 
-2. **Render every Mermaid block and look at the image.** Extract each block
-   to a file and render it; reject crossing edges, more than four nodes
-   abreast, truncated labels, or a subgraph grouping unrelated nodes.
-
-   ```bash
-   bunx --yes @mermaid-js/mermaid-cli -i /tmp/diagram-1.mmd -o /tmp/diagram-1.png
-   ```
-
-   Fall back to `npx --yes @mermaid-js/mermaid-cli`. If no renderer works,
-   inspect the syntax and state that limitation in the handoff.
+2. **Render every Mermaid block and look at the image**, following Render
+   and Inspect in the mermaid reference.
 
 3. **Read it as the new developer.** For each touched guide, answer: what
    can I do after reading this that I could not do before? If the answer
@@ -118,16 +96,3 @@ Run every check on the final text of every touched file.
 - The skill audits and documents; it never modifies source code to match
   the docs.
 - `specs/` and `plans/` are out of scope; leave those files alone.
-
-## Files in This Skill
-
-| File | Purpose |
-| --- | --- |
-| [references/style.md](references/style.md) | Writing rules and the lint code for each |
-| [references/readme.md](references/readme.md) | PROJECT and FOLDER README profiles |
-| [references/guides.md](references/guides.md) | Guide types, index, glossary, fact ownership |
-| [references/requirements.md](references/requirements.md) | Requirements profile |
-| [references/adr.md](references/adr.md) | ADR profile and the normalization rule |
-| [references/mermaid.md](references/mermaid.md) | The diagram block, grammar, caps |
-| [scripts/lint_docs.py](scripts/lint_docs.py) | The linter; run it, do not read it |
-| [scripts/test_lint_docs.py](scripts/test_lint_docs.py) | Fixture self-test for the linter |

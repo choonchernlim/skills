@@ -10,6 +10,14 @@ Audience: the agent deciding which finding to fix first.
 Tokens are spent in four places. Each playbook removes one of them with
 configuration or a script, so the saving does not depend on model behavior.
 
+## Table of Contents
+
+- [Where Tokens Go](#where-tokens-go)
+- [Impact Classes](#impact-classes)
+- [Before and After Estimates](#before-and-after-estimates)
+- [The Rules](#the-rules)
+- [What Not to Optimize](#what-not-to-optimize)
+
 ## Where Tokens Go
 
 These figures were measured on one mid-sized monorepo. Treat them as orders
@@ -46,9 +54,8 @@ then a per-area table with a TOTAL row.
 
 - `before` is what the finding costs today.
 - `after` is what it still costs once its playbook has been applied.
-- The basis is `measured` when the numbers come from real file sizes, and
-  `estimated` when they come from the impact class. An area with both is
-  `mixed`. Trust a measured number over an estimated one.
+- The basis is `measured` from real file sizes, or `estimated` from the
+  impact class. An area with both is `mixed`. Trust measured over estimated.
 
 An estimated finding costs `magnitude x cadence`. Magnitude is the low end of
 the size band above, so the number stays conservative. Cadence is how often
@@ -90,7 +97,7 @@ repository contradicts an estimate, say so in the report.
 5. **Always-on text is expensive.** Whatever loads every session must earn
    its place. Move detail into files that load on demand.
 6. **Block what must never be read.** Lockfiles and generated files get a
-   read deny and a Do Not Read entry.
+   read deny, a Do Not Read entry, and a search ignore.
 7. **Pay for a failure once.** Turn each pipeline-only failure into a local
    check in the same change.
 
@@ -107,5 +114,3 @@ Three more rules govern how work is done:
   tests or five hundred. Test selection saves time, not context.
 - **Cached context is cheap, not free.** Trimming a few hundred tokens of
   instructions matters less than removing one 20,000 token log read.
-- **Do not trade correctness for brevity.** Never weaken a check, a hook, or
-  a permission rule to save tokens.

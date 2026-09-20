@@ -88,20 +88,6 @@ to spend a run on it is the user's call.
 - Everything must behave the same in Claude Code and Codex. Shared rules go
   in `AGENTS.md`, shared logic under `scripts/`. A Claude-only setting is an
   extra layer on top, never the only layer.
-- Change the rules block only through the script. It composes the text for
-  the repository's stacks, so refresh it whenever the audit asks:
-
-  ```bash
-  python3 scripts/audit_tokens.py <repo> --fix-rules-block
-  ```
-
-- Trim an over-budget instruction file in one pass. Print the bytes under
-  each heading first:
-
-  ```bash
-  python3 scripts/audit_tokens.py <repo> --sections
-  ```
-
 - When a finding does not apply, record it with a reason in
   `.agents/tokenminator.json`. The key is `CODE`, or `CODE:glob`
   matched against the finding's path:
@@ -161,8 +147,6 @@ its date. Never re-read all the documentation up front.
   is its self-test.
 - Never edit the rules block by hand, and never weaken an existing check,
   hook, or permission rule to save tokens.
-- This skill ships no check runner. It states the contract; build the runner
-  for the project's stack.
 - Never rewrite vendored or third-party skill content. Move it, or delete it
   after asking.
 - Never copy this skill into a project. Porting it is the user's decision.

@@ -14,6 +14,7 @@ This playbook gives one source of truth and keeps it from drifting.
 
 - [Codes This Fixes](#codes-this-fixes)
 - [Bridge the Two Agents](#bridge-the-two-agents)
+- [Scope Claude Rule Files](#scope-claude-rule-files)
 - [Write the Orientation Section](#write-the-orientation-section)
 - [Write the Do Not Read Section](#write-the-do-not-read-section)
 - [Install the Rules Block](#install-the-rules-block)
@@ -28,6 +29,8 @@ This playbook gives one source of truth and keeps it from drifting.
 | `AGT-MISSING` | Create a root `AGENTS.md`. |
 | `CLD-IMPORT` | Add `CLAUDE.md` beside each `AGENTS.md` with one import line. |
 | `CLD-FORK` | Move shared rules out of `CLAUDE.md` into `AGENTS.md`. |
+| `CLD-RULE` | Add `paths:` frontmatter, or move a shared rule into `AGENTS.md`. |
+| `CLD-COMPACT` | Add a Compact Instructions section to `CLAUDE.md`. |
 | `ORIENT-MISSING` | Add the orientation section. |
 | `DNR-MISSING`, `DNR-UNLISTED` | Add or extend the Do Not Read section. |
 | `PATH-DEAD` | Correct or remove the path. |
@@ -48,6 +51,36 @@ Codex reads `AGENTS.md`. Claude Code reads `CLAUDE.md` and ignores
 
 3. Repeat for a nested `AGENTS.md` only when a folder has facts of its own.
 4. Keep `CLAUDE.md` for Claude-only notes, and keep those under 15 lines.
+
+### Tell Compaction What to Keep
+
+Claude Code reads a `## Compact Instructions` section when it summarizes a
+long session. Without one, the summary can drop the plan or the failing
+check, and the agent derives both again. Codex ignores the section, so it
+goes in `CLAUDE.md`, under the import line:
+
+```markdown
+## Compact Instructions
+
+Keep the plan, the files changed, the failing check ids, and the user's decisions.
+```
+
+## Scope Claude Rule Files
+
+A file under `.claude/rules/` with no `paths:` frontmatter loads in every
+Claude session, the same as `CLAUDE.md`. Codex never reads the folder.
+
+1. Move a rule both agents need into `AGENTS.md`, or a nested `AGENTS.md`.
+2. Give a Claude-only rule the globs it serves:
+
+   ```yaml
+   ---
+   paths:
+     - "**/*.test.ts"
+   ---
+   ```
+
+The file then loads only when Claude reads a matching file.
 
 ## Write the Orientation Section
 

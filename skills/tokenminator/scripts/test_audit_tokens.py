@@ -32,7 +32,8 @@ EXPECTED: dict[str, tuple[list[str], set[str]]] = {
     "bare": (SMALL, {"AGT-MISSING", "CLD-IMPORT", "RUN-ENTRY", "DENY-MISSING"}),
     "instructions": (
         ["--limit", "ins=300", *SMALL],
-        {"RULES-MISSING", "ORIENT-MISSING", "DNR-MISSING", "PATH-DEAD", "CLD-FORK", "INS-LONG"},
+        {"RULES-MISSING", "ORIENT-MISSING", "DNR-MISSING", "PATH-DEAD", "CLD-FORK", "CLD-RULE",
+         "CLD-COMPACT", "INS-LONG"},
     ),
     "rules-outdated": ([], {"RULES-OUTDATED"}),
     "rules-legacy": ([], {"RULES-OUTDATED"}),
@@ -42,7 +43,8 @@ EXPECTED: dict[str, tuple[list[str], set[str]]] = {
         ["--limit", "rootchars=50", "--limit", "desc=40"],
         {"SKILL-DUP", "SKILL-LINK", "SKILL-BUDGET", "SKILL-DESC"},
     ),
-    "deny": (SMALL, {"DENY-DEAD", "DNR-UNLISTED", "CFG-PARSE"}),
+    "deny": (SMALL, {"DENY-DEAD", "DENY-SEARCH", "DNR-UNLISTED", "CFG-PARSE"}),
+    "caps": ([], {"CFG-CAP"}),
     "runner": ([], {"RUN-UNDOC", "RUN-NOSUMMARY", "RUN-NOISY", "CI-DUP"}),
     "hooks-one": ([], {"HOOK-ONE", "HOOK-HOME"}),
     "hooks-diff": ([], {"HOOK-DIFF"}),
@@ -102,6 +104,13 @@ def write(root: str, relative: str, text: str) -> None:
         target.write(text)
 
 
+def claude_layer(root: str) -> None:
+    """The bridge, the compaction note, and the output caps that a clean repository carries."""
+    write(root, "CLAUDE.md", "@AGENTS.md\n\n## Compact Instructions\n\nKeep the plan and the failing check ids.\n")
+    write(root, ".claude/settings.json", '{"bashOutputMaxChars": 10000}\n')
+    write(root, ".codex/config.toml", "tool_output_token_limit = 2500\n")
+
+
 def findings(root: str, *extra: str) -> dict[str, dict]:
     _, out, _ = run(root, "--format", "json", "--today", TODAY, *extra)
     return {finding["code"]: finding for finding in json.loads(out)["findings"]}
@@ -117,11 +126,11 @@ def user_cases() -> tuple[list[str], set[str]]:
         # `owner` is a dotfiles-style repository: the home folder links into it.
         write(owner, ".git/HEAD", "ref: refs/heads/main\n")
         write(owner, "AGENTS.md", "# Owner\n\n## Where Things Live\n\n`policy.md`\n")
-        write(owner, "CLAUDE.md", "@AGENTS.md\n")
+        claude_layer(owner)
         write(owner, "policy.md", "rule\n" * 40)
         write(owner, "skills/long/SKILL.md", "---\nname: long\ndescription: " + "word " * 30 + "\n---\n")
         write(other, "AGENTS.md", "# Other\n\n## Where Things Live\n\n`AGENTS.md`\n")
-        write(other, "CLAUDE.md", "@AGENTS.md\n")
+        claude_layer(other)
         os.makedirs(os.path.join(home, ".claude"))
         os.makedirs(os.path.join(home, ".codex"))
         os.symlink(os.path.join(owner, "policy.md"), os.path.join(home, ".claude", "CLAUDE.md"))
@@ -192,7 +201,7 @@ def composed_cases() -> list[str]:
     with tempfile.TemporaryDirectory() as scratch:
         write(scratch, "flake.nix", "{ outputs = _: { checks = { }; }; }\n")
         write(scratch, "AGENTS.md", "# Project\n\nRun `nix flake check`.\n\n## Where Things Live\n\n`flake.nix`\n")
-        write(scratch, "CLAUDE.md", "@AGENTS.md\n")
+        claude_layer(scratch)
         write(scratch, "home/skills/demo/SKILL.md", "---\nname: demo\ndescription: demo\n---\n")
         write(scratch, "home/skills/demo/scripts/test_demo.py", "def test(): pass\n")
         run(scratch, "--fix-rules-block")
@@ -246,6 +255,17 @@ def composed_cases() -> list[str]:
         elif sum(layer["before"] for layer in layers) != 40000 // 4 * 3 or not all(layer["measured"] for layer in layers):
             failures.append(f"estimates: guard layers should be measured and sum to one file's cost, got {layers}")
 
+    # One finding per agent and per unscoped rule file: a cap set inside a TOML table
+    # is not a cap, and a rule file with `paths:` loads on demand, so it is left alone.
+    _, out, _ = run(os.path.join(BAD, "caps"), "--format", "json", "--today", TODAY)
+    capped = sorted(f["path"] for f in json.loads(out)["findings"] if f["code"] == "CFG-CAP")
+    if capped != [".claude/settings.json", ".codex/config.toml"]:
+        failures.append(f"caps: expected one CFG-CAP per agent config, got {capped}")
+    _, out, _ = run(os.path.join(BAD, "instructions"), "--format", "json", "--today", TODAY)
+    ruled = [f["path"] for f in json.loads(out)["findings"] if f["code"] == "CLD-RULE"]
+    if ruled != [".claude/rules/style.md"]:
+        failures.append(f"rule files: only the unscoped file should be flagged, got {ruled}")
+
     # `next` names one area: worst severity first, the check runner before hooks,
     # and nothing at all once only proposals remain.
     def following(root: str, *extra: str) -> object:
@@ -277,9 +297,12 @@ def main() -> int:
 def check() -> int:
     failures: list[str] = []
 
-    status, found = codes(GOOD)
-    if status != 0 or found:
-        failures.append(f"good: expected exit 0 and no findings, got exit {status} {sorted(found)}")
+    # The second pass drops the size floor, so the fixture's stub lockfile counts as a
+    # costly file and the deny rule, the Do Not Read entry, and `.ignore` must all cover it.
+    for extra in ([], SMALL):
+        status, found = codes(GOOD, *extra)
+        if status != 0 or found:
+            failures.append(f"good {extra}: expected exit 0 and no findings, got exit {status} {sorted(found)}")
 
     covered: set[str] = set()
     for case, (extra, expected) in EXPECTED.items():

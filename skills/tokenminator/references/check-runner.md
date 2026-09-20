@@ -31,9 +31,6 @@ runner. It states the contract, and you build it for the project's stack.
 
 ## The Contract
 
-Reuse an existing entry point when there is one. Wrap the tools the project
-already has before adding new ones.
-
 | Requirement | Detail |
 | --- | --- |
 | One command | `scripts/check`, a `make check` target, a package `check` script, or `nix flake check` when `flake.nix` declares `checks`. |

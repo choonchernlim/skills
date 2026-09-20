@@ -86,6 +86,8 @@ LIMITS = {
     "userchars": 4000,  # description characters at the user scope
     "large": 40000,  # bytes before a data file needs a read deny
     "small": 2000,  # lockfiles and generated files below this cost too little to flag
+    "bashcap": 10000,  # characters of Bash output Claude Code may return inline
+    "toolcap": 2500,  # tokens of one tool output Codex may keep in history
     "factdays": 90,  # age before a stamped tool fact is stale
 }
 
@@ -95,6 +97,8 @@ CODES = {
     "AGT-MISSING": ("high", "S/M", "instruction-files", "no root AGENTS.md"),
     "CLD-IMPORT": ("high", "S/L", "instruction-files", "CLAUDE.md does not bridge to AGENTS.md"),
     "CLD-FORK": ("low", "D", "instruction-files", "CLAUDE.md carries its own instructions"),
+    "CLD-RULE": ("low", "S", "instruction-files", "Claude rule file loads in every session"),
+    "CLD-COMPACT": ("low", "D/S", "instruction-files", "nothing tells compaction what to keep"),
     "RULES-MISSING": ("med", "L", "instruction-files", "working-rules block is absent"),
     "RULES-OUTDATED": ("med", "L", "instruction-files", "working-rules block is an old version"),
     "RULES-EDITED": ("med", "D", "instruction-files", "working-rules block was edited or is malformed"),
@@ -109,6 +113,8 @@ CODES = {
     "SKILL-DESC": ("low", "S", "context-diet", "skill description is too long"),
     "DENY-MISSING": ("high", "R/XL", "context-diet", "costly file has no Claude read deny"),
     "DENY-DEAD": ("low", "D", "context-diet", "read deny matches nothing"),
+    "DENY-SEARCH": ("low", "R/S", "context-diet", "costly file still shows up in searches"),
+    "CFG-CAP": ("low", "L/S", "context-diet", "inline tool output has no tight cap"),
     "MCP-BROWSER": ("med", "S+L", "e2e", "browser MCP configured beside a scripted suite"),
     "RUN-ENTRY": ("high", "L/L", "check-runner", "no single check entry point"),
     "RUN-UNDOC": ("med", "L", "check-runner", "check entry point is not named in AGENTS.md"),
@@ -196,6 +202,11 @@ ORIENT_RE = re.compile(
 )
 DNR_RE = re.compile(r"(?im)^##\s+(do not read|don't read|never read)\b")
 IMPORT_RE = re.compile(r"(?m)^@(\./)?AGENTS\.md\s*$")
+COMPACT_RE = re.compile(r"(?im)^##\s+compact instructions\b")
+RULE_FILE_RE = re.compile(r"(^|/)\.claude/rules/.+\.md$")
+FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---", re.S)
+SEARCH_IGNORE = ".ignore"  # ripgrep reads it, and both agents search with ripgrep
+CODEX_CAP_RE = re.compile(r"(?m)^tool_output_token_limit\s*=\s*(\d+)")
 BROWSER_MCP_RE = re.compile(
     r"(?i)playwright|puppeteer|chrome-devtools|browsermcp|browserbase|stagehand|selenium"
 )
@@ -423,11 +434,35 @@ class Audit:
                         "run --sections to see where the bytes are",
                         before=size // 4, after=(self.limits["ins"] + managed) // 4,
                     )
+        self._check_claude_layer()
         self._check_chain()
         if "AGENTS.md" in repo.fileset:
             self._check_rules_block()
             self._check_sections()
         self._check_paths()
+
+    def _check_claude_layer(self) -> None:
+        """Claude-only text: rule files that load every session, and the compaction note."""
+        repo = self.repo
+        for value in repo.files:
+            if not RULE_FILE_RE.search(value):
+                continue
+            frontmatter = FRONTMATTER_RE.match(repo.head(value))
+            if frontmatter and re.search(r"(?m)^paths\s*:", frontmatter.group(1)):
+                continue
+            size = repo.size(value)
+            self.add(
+                "CLD-RULE", value,
+                f"no `paths:` frontmatter, so {size} bytes (~{size // 4} tokens) load in every Claude session; "
+                "scope it, or move a shared rule into AGENTS.md",
+                before=size // 4,
+            )
+        if "AGENTS.md" in repo.fileset and "CLAUDE.md" in repo.fileset:
+            if not COMPACT_RE.search(repo.head("CLAUDE.md")) and not COMPACT_RE.search(self.root_agents):
+                self.add(
+                    "CLD-COMPACT", "CLAUDE.md",
+                    "add a short 'Compact Instructions' section, so a compacted session keeps the plan and the failing checks",
+                )
 
     def _check_chain(self) -> None:
         sizes = {value: self.repo.size(value) for value in self.instruction_files}
@@ -610,7 +645,53 @@ class Audit:
             if repo.ignored(re.split(r"[*?\[]", relative, maxsplit=1)[0]):
                 continue
             self.add("DENY-DEAD", ".claude/settings.json", f"`Read({pattern})` matches nothing")
+        self._check_search_ignore()
+        self._check_output_caps()
         self._check_skills()
+
+    def _check_search_ignore(self) -> None:
+        """A Read deny does not stop a search from returning the file; an ignore file does."""
+        patterns = [
+            line.strip() for line in self.repo.head(SEARCH_IGNORE).splitlines()
+            if line.strip() and not line.lstrip().startswith(("#", "!"))
+        ]
+        wanted: list[str] = []
+        for path, reason in self.candidates:
+            if any(_deny_match(pattern, path) for pattern in patterns):
+                continue
+            line = f"/{path}" if reason == "large data file" else path.rsplit("/", 1)[-1]
+            if line not in wanted:
+                wanted.append(line)
+        if wanted:
+            shown = ", ".join(f"`{line}`" for line in wanted[:HUMAN_CAP_PER_CODE])
+            more = f" and {len(wanted) - HUMAN_CAP_PER_CODE} more" if len(wanted) > HUMAN_CAP_PER_CODE else ""
+            self.add("DENY-SEARCH", SEARCH_IGNORE, f"add {shown}{more}; a read deny does not keep a file out of search results")
+
+    def _check_output_caps(self) -> None:
+        """One finding per agent. A session runs one agent, so each carries half the estimate."""
+        before = round(estimate(CODES["CFG-CAP"][1])[0] * LAYER_SHARE)
+        settings, parsed = self.repo.load_json(".claude/settings.json")
+        if parsed:
+            value = settings.get("bashOutputMaxChars") if isinstance(settings, dict) else None
+            limit = self.limits["bashcap"]
+            if not isinstance(value, int) or isinstance(value, bool) or value > limit:
+                state = "is unset, so up to 30,000 characters return inline" if value is None else f"is {value}"
+                self.add(
+                    "CFG-CAP", ".claude/settings.json",
+                    f"`bashOutputMaxChars` {state}; set it to {limit} or less and the overflow goes to a file",
+                    before=before, measured=False,
+                )
+        text = self.repo.head(".codex/config.toml")
+        top_level = re.split(r"(?m)^\[", text, maxsplit=1)[0]
+        match = CODEX_CAP_RE.search(top_level)
+        limit = self.limits["toolcap"]
+        if not match or int(match.group(1)) > limit:
+            state = f"is {match.group(1)}" if match else "is unset"
+            self.add(
+                "CFG-CAP", ".codex/config.toml",
+                f"`tool_output_token_limit` {state}; set it to {limit} or less",
+                before=before, measured=False,
+            )
 
     def _skill_scopes(self) -> list[str]:
         scopes = set()

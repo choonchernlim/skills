@@ -19,6 +19,7 @@ Audience: anyone working in or reviewing the sample dashboard.
 | --- | --- |
 | Understand the system | [architecture.md](architecture.md) |
 | Check what the product must do | [requirements.md](requirements.md) |
+| Look up a payload field | [contracts.md](contracts.md) |
 
 ## Decisions and History
 

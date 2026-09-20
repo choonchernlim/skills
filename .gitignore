@@ -1,5 +1,6 @@
-# skills/ is served live as the ~/.agents/skills hub, so agents write runtime state
-# straight into this checkout. None of it is authored here, and none may be committed.
+# IDE
+.idea/
+*.iml
 
 # Claude Code moves deleted skills here. They can be private; this repository is public.
 skills/.trash/

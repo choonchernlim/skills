@@ -51,6 +51,8 @@ Type: <how-to | reference | explanation>
 Audience: <who reads this> to <answer which question>.
 
 ## Table of Contents
+
+(Only past 100 lines or 5 H2 sections.)
 ```
 
 | Type | Contains | Never Contains |

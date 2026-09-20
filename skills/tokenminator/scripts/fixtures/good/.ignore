@@ -1,0 +1,2 @@
+# Kept out of agent searches. `rg -u` still finds them.
+package-lock.json

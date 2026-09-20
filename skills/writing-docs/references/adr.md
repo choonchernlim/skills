@@ -9,8 +9,8 @@ Audience: the writer, when recording a decision or normalizing an existing ADR.
 
 One decision per file, named `NNNN-kebab-title.md`, four-digit sequence,
 next number is the highest existing plus one. Use the repo's existing ADR
-directory; default to `docs/adrs/` only when none exists. Cap: 80 lines. An
-ADR never has a table of contents.
+directory; default to `docs/adrs/` only when none exists. An ADR never has
+a table of contents.
 
 ## Skeleton
 

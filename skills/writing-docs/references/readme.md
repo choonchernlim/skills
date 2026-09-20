@@ -9,8 +9,7 @@ Audience: the writer, when the target is a README.md at any level.
 
 Pick the profile from the folder, not from the existing file. A repo,
 package, or runnable-project root takes PROJECT. A directory inside the
-source tree takes FOLDER. A profile is the minimum shape: a section with no
-content is omitted, never left empty.
+source tree takes FOLDER.
 
 ## PROJECT Profile
 
@@ -28,7 +27,7 @@ One sentence, under 120 characters, saying what this project is.
 
 ## Table of Contents
 
-(Only when the file exceeds 100 lines.)
+(Only past 100 lines or 5 H2 sections.)
 
 ## Introduction
 

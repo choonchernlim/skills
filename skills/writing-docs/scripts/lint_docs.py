@@ -313,8 +313,11 @@ def check_fences(doc: Doc, blocks: list[Block]) -> None:
 
 
 def check_density(doc: Doc, blocks: list[Block]) -> None:
+    under_toc = False  # TOC must list every H2 (up to H2_MAX), so LIST_MAX cannot apply to it
     for b in blocks:
-        if b.kind == "para":
+        if b.kind == "heading":
+            under_toc = re.sub(r"^#+\s+", "", b.lines[0]).strip().lower() == "table of contents"
+        elif b.kind == "para":
             if len(b.lines) > RUN_MAX:
                 doc.add(b.start + 1, "RUN", f"prose run of {len(b.lines)} lines exceeds {RUN_MAX}; break it with a list, table, or diagram")
             text = " ".join(l.strip() for l in b.lines)
@@ -346,7 +349,7 @@ def check_density(doc: Doc, blocks: list[Block]) -> None:
                     ln, txt, ind = items[-1]
                     items[-1] = (ln, txt + " " + l.strip(), ind)
             top = [it for it in items if it[2] == 0]
-            if len(top) > LIST_MAX and doc.doc_type != "index":
+            if len(top) > LIST_MAX and doc.doc_type != "index" and not under_toc:
                 doc.add(top[LIST_MAX][0] + 1, "LIST", f"list has {len(top)} items; cap is {LIST_MAX}, use a table or split")
             for ln, txt, _ in items:
                 wc = word_count(txt)

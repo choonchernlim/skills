@@ -59,6 +59,11 @@ no local Codex binary was available to confirm it.
 | CX-13 | The `SessionStart` matcher accepts `startup`, `resume`, and `compact`. `clear` is not documented. | 2026-09-19 | unverified | Codex docs, hooks page |
 | CX-14 | MCP servers are declared as `[mcp_servers.<name>]` tables in `config.toml`. | 2026-09-19 | docs | Codex docs, MCP page |
 | CX-15 | A `deny_read` filesystem permission exists. Its use from project configuration is not confirmed. | 2026-09-19 | unverified | Codex docs, permissions page |
+| CX-16 | `tool_output_token_limit` in `config.toml` is the token budget for one stored tool output. | 2026-09-20 | docs | learn.chatgpt.com/docs/config-file/config-reference |
+| CX-17 | A project `.codex/config.toml` loads in trusted projects only. | 2026-09-20 | docs | learn.chatgpt.com/docs/extend/mcp |
+| CX-18 | An MCP server table takes `enabled_tools`, then `disabled_tools`, and a per-tool `output_token_limit`. | 2026-09-20 | docs | learn.chatgpt.com/docs/extend/mcp |
+| CX-19 | MCP tool schemas are not deferred; every enabled tool loads at session start. | 2026-09-20 | unverified | no deferral is documented |
+| CX-20 | Codex searches through shell `rg`, which skips files listed in `.ignore`. | 2026-09-20 | unverified | ripgrep guide; the Codex tool set is not confirmed |
 
 ## Differences That Change a Playbook
 
@@ -68,5 +73,9 @@ no local Codex binary was available to confirm it.
   Codex loads it only when launched there, so name skill paths in `AGENTS.md`.
 - **Read blocking.** Claude Code enforces `Read(...)` denies. For Codex the
   Do Not Read section of `AGENTS.md` is the dependable layer.
+- **Output caps.** The units differ: characters for Claude Code, tokens for
+  Codex.
+- **MCP tools.** Claude Code defers tool schemas. For Codex, allowlist the
+  tools in use with `enabled_tools`.
 - **Hooks.** Both accept the same `SessionStart` and `Stop` shape, so one
   script can serve both. Codex needs the project trusted first.

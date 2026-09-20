@@ -17,6 +17,7 @@ Trust a row until it fails in practice or `audit_tokens.py` reports
 - [Skills](#skills)
 - [Permissions](#permissions)
 - [Hooks and MCP](#hooks-and-mcp)
+- [Output and Search](#output-and-search)
 
 ## Re-verify One Fact
 
@@ -38,6 +39,8 @@ playbook step depends on it.
 | CC-02 | A line `@AGENTS.md` inside `CLAUDE.md` imports that file. A symlink also works. | 2026-09-19 | 2.1.277 | code.claude.com/docs/en/memory |
 | CC-03 | Parent `CLAUDE.md` files load at launch. A nested one loads when Claude first reads a file in that folder. | 2026-09-19 | 2.1.277 | code.claude.com/docs/en/memory |
 | CC-04 | Block-level HTML comments are removed before the file enters context. | 2026-09-19 | 2.1.277 | code.claude.com/docs/en/memory |
+| CC-19 | A `.claude/rules/*.md` file loads at launch. With `paths:` frontmatter it loads only when Claude reads a matching file. | 2026-09-20 | 2.1.277 | code.claude.com/docs/en/memory |
+| CC-20 | A "Compact Instructions" section in `CLAUDE.md` controls what compaction preserves. | 2026-09-20 | 2.1.277 | code.claude.com/docs/en/how-claude-code-works |
 
 ## Skills
 
@@ -67,3 +70,12 @@ playbook step depends on it.
 | CC-16 | Tool Search defers MCP tool schemas, so an idle MCP server costs little. Each tool result still enters context. | 2026-09-19 | 2.1.277 | code.claude.com/docs/en/mcp |
 | CC-17 | An MCP server declared on a subagent stays out of the main conversation. | 2026-09-19 | 2.1.277 | code.claude.com/docs/en/sub-agents |
 | CC-18 | Project MCP servers are declared in `.mcp.json` at the repository root. | 2026-09-19 | 2.1.277 | code.claude.com/docs/en/mcp |
+
+## Output and Search
+
+| ID | Fact | Verified | Version | Source |
+| --- | --- | --- | --- | --- |
+| CC-21 | `bashOutputMaxChars` defaults to 30,000 and clamps to 4,000-128,000. Overflow goes to a file; Claude gets a preview and the path. | 2026-09-20 | 2.1.277 | code.claude.com/docs/en/settings-reference |
+| CC-22 | `MAX_MCP_OUTPUT_TOKENS` caps one MCP result and defaults to 25,000. The `env` key in `settings.json` sets it. | 2026-09-20 | 2.1.277 | code.claude.com/docs/en/env-vars |
+| CC-23 | The Grep tool is built on ripgrep and skips files that `.gitignore` excludes. | 2026-09-20 | 2.1.277 | code.claude.com/docs/en/tools-reference |
+| CC-24 | The Grep tool also skips files listed in a `.ignore` file, as ripgrep does by default. | 2026-09-20 | unverified | inferred from CC-23 and the ripgrep guide |

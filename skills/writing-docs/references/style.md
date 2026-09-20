@@ -47,7 +47,7 @@ Finds the API". The first and last words are always capitalized.
 | A sentence holds at most 30 words. Aim for 20. | `SENT` |
 | A table cell holds at most 20 words. | `CELL` |
 | A bullet holds at most 30 words. Explain with a sub-bullet, not a longer bullet. | `BUL` |
-| A list holds at most 7 items. Past that, use a table or split the section. | `LIST` |
+| A list holds at most 7 items; a table of contents is exempt. Past that, use a table or split. | `LIST` |
 | Every code fence names its language. | `FENCE` |
 
 One idea per sentence, one sentence per idea. Prefer a verb to a noun

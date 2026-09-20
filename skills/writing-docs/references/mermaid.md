@@ -119,6 +119,7 @@ flowchart TD
 ## Render and Inspect
 
 Parsing is not enough; a diagram can parse and still render unreadably.
+Extract each block to a file and render it.
 
 ```bash
 bunx --yes @mermaid-js/mermaid-cli -i /tmp/diagram-1.mmd -o /tmp/diagram-1.png
@@ -126,4 +127,5 @@ bunx --yes @mermaid-js/mermaid-cli -i /tmp/diagram-1.mmd -o /tmp/diagram-1.png
 
 Fall back to `npx --yes @mermaid-js/mermaid-cli`. Read each PNG and reject
 crossing edges, more than four nodes abreast, truncated labels, or a subgraph
-grouping unrelated nodes. If no renderer works, say so in the handoff.
+grouping unrelated nodes. If no renderer works, inspect the syntax and say
+so in the handoff.

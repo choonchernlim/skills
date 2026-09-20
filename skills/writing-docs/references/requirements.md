@@ -28,6 +28,8 @@ Audience: product owners and maintainers checking what the product must do.
 
 ## Table of Contents
 
+(Only past 100 lines or 5 H2 sections.)
+
 ## Dashboard
 
 ### Functional
@@ -50,7 +52,7 @@ Audience: product owners and maintainers checking what the product must do.
 | Domains | One H2 per domain, named with a glossary term. Each has a Functional and a Non-Functional H3. |
 | Sentence | One sentence, at most 25 words. Functional ones start with the user: "A clinician MUST be able to". |
 | Keywords | RFC 2119 words in capitals: MUST, MUST NOT, SHALL, SHOULD, MAY. One keyword per requirement. |
-| ID | `DOMAIN-NNN` for functional, `DOMAIN-NNN` with an `N` prefix on the number for non-functional. Never reused. |
+| ID | `DOMAIN-001` for functional, `DOMAIN-N01` for non-functional. Never reused. |
 | Status | `Implemented`, `Gap`, or `Future`. |
 | Evidence | One link to a test, spec, or source file. Not a list, not prose. |
 | Prose | At most one sentence between a heading and its table. |

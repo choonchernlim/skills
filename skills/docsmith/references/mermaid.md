@@ -1,5 +1,5 @@
 <!--
-Purpose: The one diagram block every writing-docs document uses, with the node grammar, caps, and a rendered example.
+Purpose: The one diagram block every docsmith document uses, with the node grammar, caps, and a rendered example.
 Type: reference
 -->
 

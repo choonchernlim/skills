@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static linter for documents written by the writing-docs skill.
+"""Static linter for documents written by the docsmith skill.
 
 Purpose: enforce the rules in references/style.md and references/mermaid.md
 mechanically so verification does not rely on reading alone.
@@ -723,7 +723,7 @@ def lint_file(path: str, root: str, forced: str | None, heading_cache: dict[str,
 
 
 def main(argv: list[str]) -> int:
-    ap = argparse.ArgumentParser(description="Lint Markdown docs against the writing-docs house style.")
+    ap = argparse.ArgumentParser(description="Lint Markdown docs against the docsmith house style.")
     ap.add_argument("paths", nargs="+")
     ap.add_argument("--type", choices=sorted(TYPES), help="force the document type instead of reading the header")
     ap.add_argument("--root", default=os.getcwd(), help="repo root used to guess types and report paths")

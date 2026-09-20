@@ -1,5 +1,5 @@
 <!--
-Purpose: The writing rules every document produced by writing-docs must satisfy, with the lint code that enforces each.
+Purpose: The writing rules every document produced by docsmith must satisfy, with the lint code that enforces each.
 Type: reference
 -->
 

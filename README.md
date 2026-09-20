@@ -24,14 +24,14 @@ Each skill is self-contained, so you can install one without the others.
 | --- | --- |
 | [grill-me](skills/grill-me/SKILL.md) | Interviews you about a plan or design until every open decision is resolved, then writes the plan. |
 | [tokenminator](skills/tokenminator/SKILL.md) | Audits a repository for wasted agent tokens and fixes one area per run. |
-| [writing-docs](skills/writing-docs/SKILL.md) | Writes READMEs, guides, requirements, and ADRs to one house style, checked by a linter. |
+| [docsmith](skills/docsmith/SKILL.md) | Writes READMEs, guides, requirements, and ADRs to one house style, checked by a linter. |
 
 ## Getting Started
 
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/), which provides `npx`. Nothing is built or published.
-- [Python 3](https://www.python.org/), for the `tokenminator` and `writing-docs` scripts only.
+- [Python 3](https://www.python.org/), for the `tokenminator` and `docsmith` scripts only.
 
 ### Install With `npx skills`
 
@@ -97,7 +97,7 @@ Two skills ship a self-test for their script. Run both before you commit a chang
 
 ```bash
 python3 skills/tokenminator/scripts/test_audit_tokens.py
-python3 skills/writing-docs/scripts/test_lint_docs.py
+python3 skills/docsmith/scripts/test_lint_docs.py
 ```
 
 ## Live Checkout

@@ -1,5 +1,5 @@
 ---
-name: writing-docs
+name: docsmith
 description: >
   Writes and rewrites Markdown documentation to one linted house style:
   project and folder READMEs, docs/ guides (how-to, reference, explanation),
@@ -10,7 +10,7 @@ description: >
   drifted from the code.
 ---
 
-# Writing Docs
+# Docsmith
 
 Produce Markdown documentation that a newly onboarded developer can read
 and maintain. Follow the four steps in order. Paths are relative to this

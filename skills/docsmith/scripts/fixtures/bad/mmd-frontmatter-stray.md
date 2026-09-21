@@ -3,11 +3,11 @@ Purpose: Fixture.
 Type: explanation
 -->
 
-# Boundary
+# Frontmatter Stray
 
 Audience: maintainers, to see one rule fail.
 
-The boundary label is plain centered text.
+No boundary needs the margin here.
 
 ```mermaid
 ---
@@ -18,13 +18,10 @@ config:
       bottom: 32
 ---
 flowchart TD
-  subgraph App["Application [DEPLOYMENT]"]
-    direction TB
-    One["One<br/>[SERVICE]"]
-    Two["Two<br/>[SERVICE]"]
-    Three["Three<br/>[SERVICE]"]
-    Four["Four<br/>[SERVICE]"]
-  end
+  One["One<br/>[SERVICE]"]
+  Two["Two<br/>[SERVICE]"]
+  Three["Three<br/>[SERVICE]"]
+  Four["Four<br/>[SERVICE]"]
   One -->|"calls"| Two
   Two -->|"calls"| Three
   Three -->|"calls"| Four

@@ -8,8 +8,8 @@ Type: reference
 Audience: the writer, when a reader needs to trace events in order.
 
 Use `sequenceDiagram`. Put the initiating person first, then participants in
-call order. Use `actor` only for `PERSON`; every other participant uses
-`participant`.
+call order. Every participant uses `participant`, a `PERSON` included. Never
+use `actor`: its figure collides with a two-line label.
 
 ## Participants and Messages
 
@@ -22,9 +22,9 @@ Use the application node vocabulary. Label every participant as
 - Split by phase before exceeding seven participants or twelve messages.
 - Do not add a participant only to hold a note.
 
-Sequence diagrams do not use yellow boxes. When ownership or deployment
+Sequence diagrams do not use boundaries. When ownership or deployment
 boundaries matter more than order, create a separate application or
-infrastructure diagram with the shared two-line boundary format.
+infrastructure diagram.
 
 ## Source Table
 

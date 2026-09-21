@@ -4,7 +4,7 @@
 Purpose: enforce the rules in references/style.md and references/mermaid.md
 mechanically so verification does not rely on reading alone.
 Invariants: standard library only; one stable code per rule; exit 1 on any error.
-Usage: lint_docs.py <file>... [--type TYPE] [--root DIR]
+Usage: lint_docs.py <file>... [--type TYPE] [--root DIR] [--dup-scope PATH...]
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import argparse
 import os
 import re
 import sys
+import textwrap
 import urllib.parse
 from dataclasses import dataclass, field
 
@@ -43,6 +44,20 @@ BOUNDARY_TYPES = {
     "REPO", "TEAM", "DEPLOYMENT", "TRUST BOUNDARY", "NETWORK", "ENVIRONMENT",
     "DATACENTER", "SUBSCRIPTION", "GCP PROJECT",
 }
+VIEW_OWNERS = {
+    "application": "architecture.md",
+    "runtime": "runtime-flows.md",
+    "data": "data-model.md",
+    "infrastructure": "infrastructure.md",
+}
+TITLE_MARGIN_CONFIG = [
+    "config:",
+    "  flowchart:",
+    "    subGraphTitleMargin:",
+    "      top: 4",
+    "      bottom: 32",
+]
+BOUNDARY_WIDTHS = {480, 720, 960}
 
 BANNED_WORDS = [
     "just", "simply", "easy", "easily", "trivial", "straightforward", "painless",
@@ -91,12 +106,22 @@ class Finding:
 
 
 @dataclass
+class Diagram:
+    line: int
+    family: str
+    titles: list[str]
+    edges: list[tuple[str, str, str]]
+    sources: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
 class Doc:
     path: str
     lines: list[str]
     doc_type: str | None = None
     findings: list[Finding] = field(default_factory=list)
     prose_shingles: dict[str, int] = field(default_factory=dict)
+    diagrams: list[Diagram] = field(default_factory=list)
 
     def add(self, line: int, code: str, message: str) -> None:
         self.findings.append(Finding(self.path, line, code, message))
@@ -457,23 +482,41 @@ def collect_slugs(lines: list[str]) -> list[str]:
     return out
 
 
-def check_mermaid(doc: Doc, blocks: list[Block]) -> None:
+def split_frontmatter(body: list[str]) -> tuple[list[str] | None, list[str]]:
+    if not body or body[0].strip() != "---":
+        return None, body
+    for k in range(1, len(body)):
+        if body[k].strip() == "---":
+            config = textwrap.dedent("\n".join(body[1:k])).splitlines()
+            return [l.rstrip() for l in config], body[k + 1:]
+    return [], body[1:]
+
+
+def check_mermaid(doc: Doc, blocks: list[Block], root: str) -> None:
     for i, b in enumerate(blocks):
         if b.kind != "fence" or b.lang != "mermaid":
             continue
         line_no = b.start + 1
         body = [l for l in b.lines[1:-1] if l.strip() and not l.strip().startswith("%%")]
+        config, body = split_frontmatter(body)
         if not body:
             doc.add(line_no, "MMD", "empty diagram")
             continue
         head = body[0].strip()
-        titles: list[str] = []
+        has_boundary = head == "flowchart TD" and any(l.strip().startswith("subgraph") for l in body)
+        if has_boundary and config != TITLE_MARGIN_CONFIG:
+            doc.add(line_no, "MMD", "a flowchart with a boundary opens with the title margin frontmatter from the mermaid reference, unchanged")
+        if not has_boundary and config is not None:
+            doc.add(line_no, "MMD", "frontmatter is only for the title margin of a flowchart with a boundary; remove it")
         if head == "flowchart TD":
-            titles = check_flowchart(doc, line_no, body[1:])
+            family = flowchart_family(body[1:])
+            titles, edges = check_flowchart(doc, line_no, body[1:], family)
         elif head == "sequenceDiagram":
-            titles = check_sequence(doc, line_no, body[1:])
+            family = "runtime"
+            titles, edges = check_sequence(doc, line_no, body[1:])
         elif head == "erDiagram":
-            titles = check_er_diagram(doc, line_no, body[1:])
+            family = "data"
+            titles, edges = check_er_diagram(doc, line_no, body[1:])
         else:
             doc.add(line_no, "MMD", f"diagram must start with 'flowchart TD', 'sequenceDiagram', or 'erDiagram', found '{head}'")
             continue
@@ -487,13 +530,29 @@ def check_mermaid(doc: Doc, blocks: list[Block]) -> None:
             after = after[1:]
         if not after or after[0].kind != "table" or not re.match(r"^\|\s*Node\s*\|\s*Source\s*\|", after[0].lines[0]):
             doc.add(line_no, "MMD", "a diagram is followed by an optional numbered list and then a '| Node | Source |' table")
+            doc.diagrams.append(Diagram(line_no, family, titles, edges))
             continue
-        rows = [r for r in after[0].lines[2:]]
-        listed = [r.strip().strip("|").split("|")[0].strip() for r in rows]
-        listed = [re.sub(r"`", "", x) for x in listed]
+        sources: dict[str, str] = {}
+        for r in after[0].lines[2:]:
+            cells = [c.strip() for c in r.strip().strip("|").split("|")]
+            if cells and cells[0]:
+                sources[re.sub(r"`", "", cells[0])] = resolve_source(doc, cells[1] if len(cells) > 1 else "", root)
         for t in titles:
-            if t not in listed:
+            if t not in sources:
                 doc.add(after[0].start + 1, "MMD", f"node '{t}' is missing from the Node table")
+        doc.diagrams.append(Diagram(line_no, family, titles, edges, sources))
+
+
+def resolve_source(doc: Doc, cell: str, root: str) -> str:
+    """Normalize a Source cell so the same target compares equal from any folder."""
+    m = re.search(r"\]\(([^)\s]+)\)", cell)
+    if not m:
+        return cell
+    target = m.group(1).split("#")[0]
+    if re.match(r"^[a-z][a-z0-9+.-]*:", target):
+        return target
+    full = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(doc.path)), urllib.parse.unquote(target)))
+    return os.path.relpath(full, root).replace(os.sep, "/")
 
 
 NODE_RX = re.compile(r'(\w+)\s*(\[\(|\[/|\[|\(\(|\(|\{)\s*"([^"]*)"')
@@ -501,7 +560,7 @@ NODE_DEF_RX = re.compile(r'(\w+)\s*(?:\[\(|\[/|\[|\(\(|\(|\{)\s*"[^"]*"\s*(?:\)\
 ARROW = r'(?:(?:-->|==>|-\.->|---)\s*(?:\|\s*"([^"]*)"\s*\|)?|-\.\s*"([^"]*)"\s*\.->|--\s*"([^"]*)"\s*-->|==\s*"([^"]*)"\s*==>)'
 EDGE_RX = re.compile(r'(\w+)\s*' + ARROW + r'\s*(?=(\w+))')
 BOUNDARY_LABEL_RX = re.compile(
-    r"^<span style='display:inline-block;width:(\d+)px;text-align:left'>(.+)<br/>\[([A-Z ]+)\]</span>$"
+    r"^<span style='display:inline-block;width:(\d+)px;text-align:left'>([^<>\[\]]+)<br/>\[([A-Z ]+)\]</span>$"
 )
 
 
@@ -515,30 +574,35 @@ def flowchart_family(body: list[str]) -> str:
     return "application"
 
 
-def check_flowchart(doc: Doc, line_no: int, body: list[str]) -> list[str]:
+def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tuple[list[str], list[tuple[str, str, str]]]:
     nodes: dict[str, str] = {}
     edges: list[tuple[str, str]] = []
-    family = flowchart_family(body)
+    opened: str | None = None
     for l in body:
         s = l.strip()
+        if opened is not None and not s.startswith("direction"):
+            doc.add(line_no, "MMD", f"boundary '{opened}' must declare 'direction TB' on its first line")
+        was_opened, opened = opened, None
         if s.startswith("subgraph"):
             subgraph_match = re.match(r'^subgraph\s+\w+\["([^"]+)"\]', s)
             if not subgraph_match:
                 doc.add(line_no, "MMD", f"subgraph needs an id and a quoted label: '{s}'")
                 continue
-            boundary_match = BOUNDARY_LABEL_RX.match(subgraph_match.group(1))
+            opened = subgraph_match.group(1)
+            boundary_match = BOUNDARY_LABEL_RX.match(opened)
             if not boundary_match:
-                doc.add(line_no, "MMD", "boundary label must be left aligned as '<name><br/>[TYPE]' in the approved span markup")
+                doc.add(line_no, "MMD", f"boundary label must be the left-aligned 'Name<br/>[TYPE]' span from the mermaid reference: '{opened[:50]}'")
                 continue
             width, name, boundary_type = boundary_match.groups()
-            if int(width) < 120:
-                doc.add(line_no, "MMD", f"boundary '{name}' width is too narrow for a readable label")
+            opened = name
+            if int(width) not in BOUNDARY_WIDTHS:
+                doc.add(line_no, "MMD", f"boundary '{name}' width {width} is not 480, 720, or 960; pick by nodes abreast")
             if boundary_type not in BOUNDARY_TYPES:
                 doc.add(line_no, "MMD", f"unknown boundary TYPE '{boundary_type}' in '{name}'")
             continue
         if s in ("end",) or s.startswith("direction"):
-            if s.startswith("direction"):
-                doc.add(line_no, "MMD", "direction overrides are not allowed; the diagram is TD")
+            if s.startswith("direction") and (s != "direction TB" or was_opened is None):
+                doc.add(line_no, "MMD", "the only direction line allowed is 'direction TB' on the first line of a boundary")
             continue
         for m in NODE_RX.finditer(s):
             ident, label = m.group(1), m.group(3)
@@ -588,20 +652,22 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str]) -> list[str]:
             stack.extend(adj.get(n, ()))
         if not set(nodes) <= seen:
             doc.add(line_no, "MMD", "diagram holds more than one disconnected graph; split it")
-    return list(nodes.values())
+    return list(nodes.values()), [(nodes.get(a, a), nodes.get(c, c), "") for a, c in edges]
 
 
-def check_er_diagram(doc: Doc, line_no: int, body: list[str]) -> list[str]:
+def check_er_diagram(doc: Doc, line_no: int, body: list[str]) -> tuple[list[str], list[tuple[str, str, str]]]:
     entities: list[str] = []
-    relationships = 0
+    edges: list[tuple[str, str, str]] = []
     for line in body:
         stripped = line.strip()
         entity_match = re.match(r"^(\w+)\s*\{$", stripped)
         if entity_match:
             entities.append(entity_match.group(1))
             continue
-        if re.match(r'^\w+\s+[|o}{.]+--[|o}{.]+\s+\w+\s*:\s*"[^"]+"$', stripped):
-            relationships += 1
+        relationship = re.match(r'^(\w+)\s+[|o}{.]+--[|o}{.]+\s+(\w+)\s*:\s*"[^"]+"$', stripped)
+        if relationship:
+            a, c = sorted(relationship.groups())
+            edges.append((a, c, ""))
         if stripped.startswith("subgraph"):
             doc.add(line_no, "MMD", "ER diagrams do not use boundaries; state ownership in prose and the source table")
     unique_entities = list(dict.fromkeys(entities))
@@ -609,13 +675,15 @@ def check_er_diagram(doc: Doc, line_no: int, body: list[str]) -> list[str]:
         doc.add(line_no, "MMD", "an ER diagram needs at least two entities")
     if len(unique_entities) > 8:
         doc.add(line_no, "MMD", f"{len(unique_entities)} entities exceeds the cap of 8; split by aggregate")
-    if relationships == 0:
+    if not edges:
         doc.add(line_no, "MMD", "an ER diagram needs at least one labelled relationship")
-    return unique_entities
+    return unique_entities, edges
 
 
-def check_sequence(doc: Doc, line_no: int, body: list[str]) -> list[str]:
+def check_sequence(doc: Doc, line_no: int, body: list[str]) -> tuple[list[str], list[tuple[str, str, str]]]:
     titles: list[str] = []
+    idents: dict[str, str] = {}
+    edges: list[tuple[str, str, str]] = []
     messages = 0
     for l in body:
         s = l.strip()
@@ -627,26 +695,66 @@ def check_sequence(doc: Doc, line_no: int, body: list[str]) -> list[str]:
             if not lm:
                 doc.add(line_no, "MMD", f"participant label must be 'Title<br/>[TYPE]': '{label}'")
                 titles.append(label)
+                idents[ident] = label
                 continue
             title, typ = lm.group(1).strip(), lm.group(2).strip()
             if typ not in MERMAID_TYPES:
                 doc.add(line_no, "MMD", f"unknown TYPE '{typ}' in participant '{title}'")
             if re.match(r"^\d+\.\s", title):
                 doc.add(line_no, "MMD", f"participant carries an ordinal prefix: '{title}'; number messages, not participants")
-            if (typ == "PERSON") != (kw == "actor"):
-                doc.add(line_no, "MMD", f"'{title}': PERSON uses 'actor', every other TYPE uses 'participant'")
+            if kw == "actor":
+                doc.add(line_no, "MMD", f"'{title}': use 'participant' for every TYPE; an actor figure collides with its two-line label")
             titles.append(title)
+            idents[ident] = title
             continue
-        mm = re.match(r"^\w+\s*(-{1,2}>>?|-{1,2}x|-{1,2}\))\s*\w+\s*:\s*(.*)$", s)
+        mm = re.match(r"^(\w+)\s*(?:-{1,2}>>?|-{1,2}x|-{1,2}\))\s*(\w+)\s*:\s*(.*)$", s)
         if mm:
             messages += 1
-            if not re.match(r"^\d+\.\s", mm.group(2)):
-                doc.add(line_no, "MMD", f"sequence message is not numbered: '{mm.group(2)[:40]}'")
+            src, dst, text = mm.groups()
+            if not re.match(r"^\d+\.\s", text):
+                doc.add(line_no, "MMD", f"sequence message is not numbered: '{text[:40]}'")
+            action = re.sub(r"^\d+\.\s*", "", text).strip().lower()
+            edges.append((idents.get(src, src), idents.get(dst, dst), action))
     if len(titles) > 7:
         doc.add(line_no, "MMD", f"{len(titles)} participants exceeds the cap of 7; split the flow")
     if messages > 12:
         doc.add(line_no, "MMD", f"{messages} messages exceeds the cap of 12; split the flow by phase")
-    return titles
+    return titles, edges
+
+
+def check_view(doc: Doc) -> None:
+    p = os.path.abspath(doc.path)
+    if os.path.basename(os.path.dirname(p)) != "docs":
+        return
+    name = os.path.basename(p)
+    owned = next((family for family, owner in VIEW_OWNERS.items() if owner == name), None)
+    if owned is None:
+        return
+    for d in doc.diagrams:
+        if d.family != owned:
+            doc.add(d.line, "VIEW", f"{name} owns {owned} diagrams only; move this {d.family} diagram to {VIEW_OWNERS[d.family]} or a topic guide")
+
+
+def check_redrawn_edges(docs: list[Doc]) -> None:
+    owner: dict[tuple[str, str, str, str], tuple[Doc, int]] = {}
+    for doc in docs:
+        for d in doc.diagrams:
+            for src, dst, action in d.edges:
+                key = (d.family, src, dst, action)
+                first = owner.setdefault(key, (doc, d.line))
+                if first[0] is not doc:
+                    what = f"'{src}' to '{dst}'" + (f" ('{action}')" if action else "")
+                    doc.add(d.line, "DUP", f"{d.family} relationship {what} is already drawn in {first[0].path}:{first[1]}; link to that diagram")
+
+
+def check_node_identity(docs: list[Doc]) -> None:
+    owner: dict[str, tuple[Doc, int, str]] = {}
+    for doc in docs:
+        for d in doc.diagrams:
+            for title, source in d.sources.items():
+                first = owner.setdefault(title, (doc, d.line, source))
+                if first[2] != source:
+                    doc.add(d.line, "NODE", f"node '{title}' maps to '{source}' here but to '{first[2]}' in {first[0].path}:{first[1]}; one title, one source")
 
 
 STOPWORDS = set("""a an the and or but of to in on at by for with from as is are be was were
@@ -764,6 +872,18 @@ def guess_type(path: str, root: str) -> str | None:
     return None
 
 
+def expand_scope(paths: list[str]) -> list[str]:
+    out: list[str] = []
+    for p in paths:
+        if os.path.isfile(p):
+            out.append(p)
+            continue
+        for folder, dirs, files in os.walk(p):
+            dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d != "node_modules")
+            out.extend(os.path.join(folder, f) for f in sorted(files) if f.endswith(".md"))
+    return out
+
+
 SENTENCE_SETS: dict[str, list[tuple[int, str, frozenset[str]]]] = {}
 
 
@@ -783,7 +903,8 @@ def lint_file(path: str, root: str, forced: str | None, heading_cache: dict[str,
     check_density(doc, blocks)
     check_words(doc, blocks)
     check_links(doc, blocks, root, heading_cache)
-    check_mermaid(doc, blocks)
+    check_mermaid(doc, blocks, root)
+    check_view(doc)
     collect_shingles(doc, blocks)
     SENTENCE_SETS[path] = collect_sentences(doc, blocks)
     return doc
@@ -795,6 +916,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--type", choices=sorted(TYPES), help="force the document type instead of reading the header")
     ap.add_argument("--root", default=os.getcwd(), help="repo root used to guess types and report paths")
     ap.add_argument("--no-dup", action="store_true", help="skip the cross-file duplicate check")
+    ap.add_argument("--dup-scope", nargs="+", action="extend", default=[], metavar="PATH",
+                    help="files or directories that join the cross-file checks but report no findings of their own")
     args = ap.parse_args(argv)
     root = os.path.abspath(args.root)
     docs: list[Doc] = []
@@ -804,9 +927,15 @@ def main(argv: list[str]) -> int:
             print(f"{p}:0: FILE not found", file=sys.stderr)
             return 2
         docs.append(lint_file(p, root, args.type, cache))
-    if len(docs) > 1 and not args.no_dup:
-        check_duplicates(docs)
-        check_near_duplicates(docs, SENTENCE_SETS)
+    primary = {os.path.abspath(d.path) for d in docs}
+    scope = [lint_file(p, root, None, cache) for p in expand_scope(args.dup_scope) if os.path.abspath(p) not in primary]
+    # Scope files go first so they own a shared fact and the finding lands on the file being linted.
+    everyone = scope + docs
+    if len(everyone) > 1 and not args.no_dup:
+        check_duplicates(everyone)
+        check_near_duplicates(everyone, SENTENCE_SETS)
+        check_redrawn_edges(everyone)
+        check_node_identity(everyone)
     total = 0
     for d in docs:
         for f in sorted(d.findings, key=lambda x: (x.line, x.code)):

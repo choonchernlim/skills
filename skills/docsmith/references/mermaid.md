@@ -1,5 +1,5 @@
 <!--
-Purpose: Routes a diagram to one Mermaid family and defines the shared visual and verification contract.
+Purpose: Routes a diagram to one Mermaid family and its owner file, and defines the shared visual and verification contract.
 Type: reference
 -->
 
@@ -7,18 +7,47 @@ Type: reference
 
 Audience: the writer, before drawing or editing any diagram.
 
+## Table of Contents
+
+- [Families](#families)
+- [Ownership](#ownership)
+- [Diagram Block](#diagram-block)
+- [Shared Visual Language](#shared-visual-language)
+- [Boundaries](#boundaries)
+- [Size Budget](#size-budget)
+- [Render and Inspect](#render-and-inspect)
+
+## Families
+
 Choose one family by what the reader must learn. Load only its reference.
 
-| Reader Question | Family | Reference |
-| --- | --- | --- |
-| What components exist and depend on each other? | Application | [mermaid-application.md](mermaid-application.md) |
-| What happens in order across participants? | Runtime | [mermaid-runtime.md](mermaid-runtime.md) |
-| How do stored entities relate? | Data | [mermaid-data.md](mermaid-data.md) |
-| Which boundary provisions or hosts each resource? | Infrastructure | [mermaid-infrastructure.md](mermaid-infrastructure.md) |
+| Reader Question | Family | Owner File | Reference |
+| --- | --- | --- | --- |
+| What components exist and depend on each other? | Application | `docs/architecture.md` | [mermaid-application.md](mermaid-application.md) |
+| What happens in order across participants? | Runtime | `docs/runtime-flows.md` | [mermaid-runtime.md](mermaid-runtime.md) |
+| How do stored entities relate? | Data | `docs/data-model.md` | [mermaid-data.md](mermaid-data.md) |
+| Which boundary provisions or hosts each resource? | Infrastructure | `docs/infrastructure.md` | [mermaid-infrastructure.md](mermaid-infrastructure.md) |
 
 Do not combine families in one diagram. Put runtime order in a sequence
 diagram and static structure in a flowchart, even when they describe the same
 feature.
+
+## Ownership
+
+An owner file holds only its own family. A topic guide, such as
+`docs/authentication.md`, may use any family, one diagram per section.
+
+- The project README draws the context: the project as one `SYSTEM` node.
+- The owner file draws the system-wide overview inside that node.
+- A topic guide draws the zoom-in: it expands one overview edge into the
+  nodes and messages between its two ends.
+- A relationship is drawn in one file. Every other file links to that diagram.
+- One title maps to one source in every diagram.
+- One component keeps one title in every diagram `[judgement]`.
+
+The lint fails a family in the wrong owner file (`VIEW`), a relationship
+redrawn in a second file (`DUP`), and a title with two sources (`NODE`). It
+reports every other mechanical rule in this reference as `MMD`.
 
 ## Diagram Block
 
@@ -42,26 +71,42 @@ in the repository. Never use Mermaid `click` directives.
 - Prefer three siblings abreast; four is the maximum after rendering proves they remain readable.
 - Split by boundary or phase before text becomes too small to read without zooming.
 
-A yellow box always represents a real boundary: repository, ownership,
-deployment, trust, network, environment, or physical location. It never exists
-only to arrange nodes.
+## Boundaries
 
-Every boundary label is left aligned and uses two lines:
+A boundary is a subgraph. It always represents a real boundary: repository,
+ownership, deployment, trust, network, environment, or physical location. It
+never exists only to arrange nodes.
 
-```text
-<boundary name>
-[<TYPE>]
-```
-
-Use a fixed-width inline span so Mermaid keeps the label at the left edge of
-the boundary. Choose the smallest width that clears the widest row of nodes:
+A flowchart with a boundary opens with this frontmatter, unchanged. Every
+boundary uses a left-aligned two-line label and declares its direction:
 
 ```text
-subgraph Boundary["<span style='display:inline-block;width:420px;text-align:left'>Boundary name<br/>[TYPE]</span>"]
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      top: 4
+      bottom: 32
+---
+flowchart TD
+  subgraph Boundary["<span style='display:inline-block;width:480px;text-align:left'>Boundary name<br/>[TYPE]</span>"]
+    direction TB
 ```
 
-The family reference defines allowed boundary types. Nodes remain lavender
-unless a family defines a data shape.
+| Nodes Abreast in the Boundary | Span Width |
+| --- | ---: |
+| 1 or 2 | `480px` |
+| 3 | `720px` |
+| 4 | `960px` |
+
+- The narrow label sits top left, clear of every edge that enters from above.
+- The margin makes room for the second label line.
+- A span narrower than its boundary drifts right into the entry edges.
+- Without `direction TB`, a boundary with no outside edges renders left to right.
+- A diagram without a boundary has no frontmatter.
+
+The family reference defines allowed boundary types. Never set colors or
+styles; the theme of each renderer supplies them in light and dark mode.
 
 ## Size Budget
 
@@ -78,12 +123,16 @@ and link the two explanations.
 
 ## Render and Inspect
 
-Extract every Mermaid block and render it before handoff.
+Render every Mermaid block in the touched files before handoff. Run the
+script; do not read it.
 
 ```bash
-bunx --yes @mermaid-js/mermaid-cli -i /tmp/diagram.mmd -o /tmp/diagram.png
+python3 scripts/render_mermaid.py docs/*.md README.md
 ```
 
-Fall back to `npx --yes @mermaid-js/mermaid-cli`. Inspect the PNG at its normal
-display size. Reject obscured boundary labels, clipped text, crossing edges,
-tiny text, excess empty space, or a diagram that needs zooming.
+The script prints one PNG path per diagram. Open each PNG at its normal
+display size. The script renders at double scale so a thin line through a
+label is visible.
+
+Reject an edge or node that touches a boundary label, clipped text, crossing
+edges, tiny text, excess empty space, or a diagram that needs zooming.

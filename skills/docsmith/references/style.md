@@ -93,9 +93,19 @@ replaces what was      kept for link stability   this corpus now calls
 
 Each category of fact has one owning document, listed in the
 [fact-ownership table](guides.md#fact-ownership). Every other document may
-spend one sentence on it and must link to the owner. The lint fails when a
-12-word run appears in two files, or when a sentence shares half its content
-words with a sentence in another file. Code: `DUP`.
+spend one sentence on it and must link to the owner.
+
+| Rule | Code |
+| --- | --- |
+| No 12-word run appears in two files. | `DUP` |
+| No sentence shares half its content words with a sentence in another file. | `DUP` |
+| No diagram relationship is drawn in two files; see [diagram ownership](mermaid.md#ownership). | `DUP` |
+| One node title maps to one source across all files. | `NODE` |
+| An owner file holds only its own diagram family. | `VIEW` |
+
+The cross-file rules see only the files passed to the lint. Add untouched
+files with `--dup-scope`; they join the comparison and report no findings of
+their own.
 
 ## Links
 

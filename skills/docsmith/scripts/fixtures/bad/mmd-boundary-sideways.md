@@ -3,11 +3,11 @@ Purpose: Fixture.
 Type: explanation
 -->
 
-# Boundary
+# Boundary Sideways
 
 Audience: maintainers, to see one rule fail.
 
-The boundary label is plain centered text.
+The boundary runs left to right.
 
 ```mermaid
 ---
@@ -18,8 +18,8 @@ config:
       bottom: 32
 ---
 flowchart TD
-  subgraph App["Application [DEPLOYMENT]"]
-    direction TB
+  subgraph App["<span style='display:inline-block;width:480px;text-align:left'>Application<br/>[DEPLOYMENT]</span>"]
+    direction LR
     One["One<br/>[SERVICE]"]
     Two["Two<br/>[SERVICE]"]
     Three["Three<br/>[SERVICE]"]

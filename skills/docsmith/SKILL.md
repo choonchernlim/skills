@@ -26,7 +26,8 @@ skill's folder.
 | `docs/glossary.md` | `glossary` | [references/guides.md](references/guides.md) |
 | A procedure: operations, a playbook, a runbook | `how-to` | [references/guides.md](references/guides.md) |
 | Field-by-field facts: contracts, data model, config | `reference` | [references/guides.md](references/guides.md) |
-| Why and how things fit: architecture, flows | `explanation` | [references/guides.md](references/guides.md) |
+| Why and how things fit: architecture, flows, infrastructure | `explanation` | [references/guides.md](references/guides.md) |
+| One cross-cutting subject in depth, such as authentication | `explanation` topic guide | [references/guides.md](references/guides.md) |
 | `docs/requirements.md` | `requirements` | [references/requirements.md](references/requirements.md) |
 | A decision to record, or a file in the ADR directory | `adr` | [references/adr.md](references/adr.md) |
 
@@ -42,8 +43,10 @@ Run the lint first on the existing file and its siblings so the findings are
 mechanical, not impressions. Run the script; do not read it.
 
 ```bash
-python3 scripts/lint_docs.py docs/*.md README.md
+python3 scripts/lint_docs.py docs/*.md README.md --dup-scope .
 ```
+
+`--dup-scope .` lets untouched files join the cross-file checks without reporting on them.
 
 Then produce two artifacts and show both in the handoff:
 
@@ -61,12 +64,11 @@ Then produce two artifacts and show both in the handoff:
   plain-language point before any identifier appears.
 - One fact, one home. Check the fact-ownership table in the guides
   reference before restating anything; link to the owner instead.
+- One relationship, one diagram. The README draws the context, each
+  viewpoint file draws its own family, and a topic guide draws the zoom-in.
 - Use glossary terms as the only names for domain concepts. If a term is
   missing, add it to the glossary in the same change.
 - Every diagram uses the one block from the mermaid reference.
-- Keep the skill project agnostic. Templates, examples, and fixtures must use
-  invented names and paths, never names or paths copied from the repository
-  being documented.
 - A touched file is converted to house style in full. Untouched files are
   left alone, even when they disagree with these rules.
 
@@ -78,11 +80,14 @@ Run every check on the final text of every touched file.
    the cross-file duplicate check runs. The command must exit 0.
 
    ```bash
-   python3 scripts/lint_docs.py docs/*.md docs/adrs/*.md README.md
+   python3 scripts/lint_docs.py docs/*.md docs/adrs/*.md README.md --dup-scope .
    ```
 
-2. **Render every Mermaid block and look at the image**, following Render
-   and Inspect in the mermaid reference.
+2. **Render every Mermaid block and inspect each image**, per the mermaid reference.
+
+   ```bash
+   python3 scripts/render_mermaid.py docs/*.md README.md
+   ```
 
 3. **Read it as the new developer.** For each touched guide, answer: what
    can I do after reading this that I could not do before? If the answer
@@ -100,3 +105,5 @@ Run every check on the final text of every touched file.
 - The skill audits and documents; it never modifies source code to match
   the docs.
 - `specs/` and `plans/` are out of scope; leave those files alone.
+- When editing this skill itself, keep it project agnostic: its templates,
+  examples, and fixtures use invented names, never names from a real repository.

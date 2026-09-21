@@ -3,7 +3,7 @@ Purpose: Shows a valid relational data diagram with source ownership.
 Type: reference
 -->
 
-# Data Relationships
+# Data Model
 
 Audience: backend developers, to understand account ownership.
 

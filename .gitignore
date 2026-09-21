@@ -11,4 +11,7 @@ skills/synced/
 # Codex regenerates its bundled system skills under a skills dir it can reach.
 skills/.system/
 
+# Bytecode from running a skill's Python scripts.
+__pycache__/
+
 .DS_Store

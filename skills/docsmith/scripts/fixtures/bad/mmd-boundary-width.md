@@ -3,11 +3,11 @@ Purpose: Fixture.
 Type: explanation
 -->
 
-# Boundary
+# Boundary Width
 
 Audience: maintainers, to see one rule fail.
 
-The boundary label is plain centered text.
+The boundary label width is a hand-tuned guess.
 
 ```mermaid
 ---
@@ -18,7 +18,7 @@ config:
       bottom: 32
 ---
 flowchart TD
-  subgraph App["Application [DEPLOYMENT]"]
+  subgraph App["<span style='display:inline-block;width:320px;text-align:left'>Application<br/>[DEPLOYMENT]</span>"]
     direction TB
     One["One<br/>[SERVICE]"]
     Two["Two<br/>[SERVICE]"]

@@ -3,11 +3,11 @@ Purpose: Fixture.
 Type: explanation
 -->
 
-# Boundary
+# Frontmatter Changed
 
 Audience: maintainers, to see one rule fail.
 
-The boundary label is plain centered text.
+The title margin was tuned by hand.
 
 ```mermaid
 ---
@@ -15,10 +15,10 @@ config:
   flowchart:
     subGraphTitleMargin:
       top: 4
-      bottom: 32
+      bottom: 40
 ---
 flowchart TD
-  subgraph App["Application [DEPLOYMENT]"]
+  subgraph App["<span style='display:inline-block;width:480px;text-align:left'>Application<br/>[DEPLOYMENT]</span>"]
     direction TB
     One["One<br/>[SERVICE]"]
     Two["Two<br/>[SERVICE]"]

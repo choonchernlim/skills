@@ -13,7 +13,7 @@ Lead.
 
 ```mermaid
 sequenceDiagram
-  participant Customer as Customer<br/>[PERSON]
+  actor Customer as Customer<br/>[PERSON]
   participant Browser as 1. Storefront UI<br/>[UI]
   participant Route as Order API<br/>[API]
 

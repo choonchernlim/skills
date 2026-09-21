@@ -16,23 +16,43 @@ resource detail when several repositories manage one environment.
 Allowed types are `REPO`, `ENVIRONMENT`, `NETWORK`, `TRUST BOUNDARY`,
 `DATACENTER`, `SUBSCRIPTION`, and `GCP PROJECT`.
 
-Every boundary is pale yellow and has a left-aligned two-line label. Use this
-markup, then render and adjust `width` to the boundary width minus its padding:
+The example applies the shared [boundary format](mermaid.md#boundaries):
 
 ````markdown
+The foundation repository provisions the network and secrets that the payments workload consumes.
+
 ```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      top: 4
+      bottom: 32
+---
 flowchart TD
-  subgraph Repo["<span style='display:inline-block;width:420px;text-align:left'>payments-infra<br/>[REPO]</span>"]
+  subgraph Foundation["<span style='display:inline-block;width:480px;text-align:left'>platform-foundation<br/>[REPO]</span>"]
+    direction TB
+    Network["Shared Network<br/>[VPC]"]
+    Secrets["Payment Secrets<br/>[SECRET MANAGER]"]
+  end
+
+  subgraph Payments["<span style='display:inline-block;width:480px;text-align:left'>payments-infra<br/>[REPO]</span>"]
+    direction TB
     Service["Payments API<br/>[CLOUD RUN]"]
     Store[("Payments Database<br/>[POSTGRES]")]
   end
+
+  Network -->|"connects"| Service
+  Secrets -->|"supplies keys"| Service
   Service -->|"writes"| Store
 ```
 
 | Node | Source |
 | --- | --- |
-| Payments API | - |
-| Payments Database | - |
+| Shared Network | [network.tf](../foundation/network.tf) |
+| Payment Secrets | [secrets.tf](../foundation/secrets.tf) |
+| Payments API | [service.tf](../infra/service.tf) |
+| Payments Database | [database.tf](../infra/database.tf) |
 ````
 
 Never create a boundary for a layer, phase, or visual shortcut. Use one

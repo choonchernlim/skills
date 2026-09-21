@@ -18,7 +18,7 @@ only when their dependency is the point of the diagram.
 | Type | `flowchart TD` for static structure. |
 | Node label | `Title<br/>[TYPE]`, quoted. Title is one to three words; TYPE is from the closed list below. |
 | Shape | Chosen by TYPE: `id["..."]` rectangle, `id[("...")]` cylinder, `id[/"..."/]` parallelogram. |
-| Subgraph | A real typed boundary using the shared left-aligned format. |
+| Subgraph | A real typed boundary in the shared [boundary format](mermaid.md#boundaries). |
 | Edge label | Required on every edge, one to four words, a verb: `-->\|"validates"\|`. |
 | Step numbers | Prefix edge labels `1.`, `2.` when the diagram is a flow. Numbers mean order, never ownership. |
 | Forbidden | `click`, horizontal flowcharts, decorative subgraphs, and ASCII diagrams. |
@@ -41,9 +41,8 @@ ways in two documents.
 ## Boundaries
 
 Allowed types are `TEAM`, `DEPLOYMENT`, `TRUST BOUNDARY`, and `REPO`.
-Most application diagrams need no subgraph. When a real boundary matters,
-use the shared left-aligned two-line markup and render it at normal preview
-width.
+Most application diagrams need no subgraph. A real boundary follows the
+shared [boundary format](mermaid.md#boundaries).
 
 ## Example
 
@@ -53,13 +52,22 @@ The block below is copied verbatim into a document, with real paths.
 The order API checks inventory before it stores the order.
 
 ```mermaid
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      top: 4
+      bottom: 32
+---
 flowchart TD
-  subgraph Web["<span style='display:inline-block;width:320px;text-align:left'>Web App<br/>[DEPLOYMENT]</span>"]
+  subgraph Web["<span style='display:inline-block;width:480px;text-align:left'>Web App<br/>[DEPLOYMENT]</span>"]
+    direction TB
     Browser["Storefront UI<br/>[UI]"]
     Route[/"Order API<br/>[API]"/]
   end
 
-  subgraph Orders["<span style='display:inline-block;width:320px;text-align:left'>Order Service<br/>[DEPLOYMENT]</span>"]
+  subgraph Orders["<span style='display:inline-block;width:480px;text-align:left'>Order Service<br/>[DEPLOYMENT]</span>"]
+    direction TB
     Inventory["Inventory Client<br/>[SERVICE]"]
     Store[("Order Store<br/>[DATABASE]")]
   end

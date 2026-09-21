@@ -27,14 +27,28 @@ scaffold an empty guide so the set looks complete.
 | Glossary | `docs/glossary.md` | `glossary` |
 | Architecture | `docs/architecture.md` | `explanation` |
 | Runtime flows | `docs/runtime-flows.md` | `explanation` |
-| Data model or contracts | `docs/data-model.md` or `docs/contracts.md` | `reference` |
+| Data model | `docs/data-model.md` | `reference` |
+| Infrastructure | `docs/infrastructure.md` | `explanation` |
+| Topic guide | `docs/<topic>.md` | `explanation` |
+| Contracts | `docs/contracts.md` | `reference` |
 | Operations | `docs/operations.md` | `how-to` |
 | Task playbook | `docs/<task>-playbook.md` | `how-to` |
 | Requirements | `docs/requirements.md` | `requirements`, see [requirements.md](requirements.md) |
 | Decisions | `docs/adrs/` | `adr`, see [adr.md](adr.md) |
 
-A repo may already satisfy a role under another name; extend that file
-rather than creating a parallel one.
+When a repo satisfies a role under another name, rename that file to the
+canonical name and fix its inbound links. The lint finds an owner file by name.
+
+Architecture, runtime flows, data model, and infrastructure are the four
+viewpoints. Each owns one diagram family, listed in the
+[mermaid reference](mermaid.md#families), and draws the system-wide overview.
+
+A topic guide owns one cross-cutting subject in full, such as
+`docs/authentication.md`. It may use any diagram family.
+
+- A viewpoint file spends one node or edge and one linked sentence on the topic.
+- The topic guide never repeats an overview relationship; it expands one.
+- Create a topic guide when a subject needs detail from two or more viewpoints.
 
 ## Type Profiles
 
@@ -114,10 +128,15 @@ sentence plus a link.
 | Fact | Owner |
 | --- | --- |
 | Extension recipe (how to add a thing) | The task playbook |
-| Team and deployment ownership | `architecture.md` |
+| Project context: users and external systems | The project README |
+| Components, dependencies, team and deployment ownership | `architecture.md` |
+| Order of events across components | `runtime-flows.md` |
+| Stored entities and their relationships | `data-model.md` |
+| Provisioning, hosting, and network boundaries | `infrastructure.md` |
+| Every detail of one cross-cutting subject | That subject's topic guide |
 | Troubleshooting symptoms | `operations.md` |
 | Environment variables and ports | `operations.md` |
-| Contract and data fields | The contracts or data-model reference |
+| Payload fields | `contracts.md` |
 | Source map of a directory | That directory's folder README |
 | Definitions | `glossary.md` |
 | Requirement statements | `requirements.md` |

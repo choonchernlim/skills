@@ -13,29 +13,46 @@ Two teams ship independently, and only a versioned contract crosses the line
 between them.
 
 ```mermaid
-sequenceDiagram
-  actor Customer as Customer<br/>[PERSON]
-  participant Browser as Storefront UI<br/>[UI]
-  participant Route as Order API<br/>[API]
-  participant Inventory as Inventory Client<br/>[SERVICE]
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      top: 4
+      bottom: 32
+---
+flowchart TD
+  subgraph Web["<span style='display:inline-block;width:480px;text-align:left'>Web Team<br/>[DEPLOYMENT]</span>"]
+    direction TB
+    Browser["Storefront UI<br/>[UI]"]
+  end
 
-  Customer->>Browser: 1. Submit the cart
-  Browser->>Route: 2. Create the order
-  Route->>Inventory: 3. Reserve stock
-  Inventory-->>Route: 4. Confirm the reservation
+  subgraph Orders["<span style='display:inline-block;width:480px;text-align:left'>Order Team<br/>[DEPLOYMENT]</span>"]
+    direction TB
+    Route[/"Order API<br/>[API]"/]
+    Inventory["Inventory Client<br/>[SERVICE]"]
+    Store[("Order Store<br/>[DATABASE]")]
+  end
+
+  Identity["Identity Provider<br/>[SYSTEM]"]
+  Warehouse["Warehouse System<br/>[SYSTEM]"]
+
+  Browser -->|"signs in"| Identity
+  Browser -->|"sends orders"| Route
+  Route -->|"reserves stock"| Inventory
+  Route -->|"stores orders"| Store
+  Inventory -->|"queries"| Warehouse
 ```
-
-1. The customer submits the current cart.
-2. The storefront asks the API to create an order.
-3. The API asks the inventory client to reserve stock.
-4. The inventory client confirms the reservation.
 
 | Node | Source |
 | --- | --- |
-| Customer | - |
 | Storefront UI | [../src/](../src/) |
 | Order API | [../src/api.ts](../src/api.ts) |
 | Inventory Client | [../src/inventory/client.ts](../src/inventory/client.ts) |
+| Order Store | - |
+| Identity Provider | - |
+| Warehouse System | - |
 
 The UI never writes inventory directly. The order API coordinates the
 reservation so one component owns the transaction boundary.
+
+Sign-in has its own guide: [authentication.md](authentication.md).

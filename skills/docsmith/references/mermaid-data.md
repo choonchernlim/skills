@@ -24,7 +24,7 @@ normal Markdown preview size.
 
 ## Boundaries
 
-ER diagrams do not use yellow boxes. Put schema, service, or repository
+ER diagrams do not use boundaries. Put schema, service, or repository
 ownership in the lead sentence and source table. If physical placement across
 networks or platforms matters, create a separate infrastructure diagram.
 

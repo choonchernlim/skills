@@ -11,7 +11,8 @@ Audience: anyone working in or reviewing the sample shop.
 
 1. Read [architecture.md](architecture.md). You can name the deployments and who owns each.
 2. Read [glossary.md](glossary.md). You can use every domain noun correctly.
-3. Run the checks in the [README](../README.md). You can prove the project is green.
+3. Read [runtime-flows.md](runtime-flows.md). You can trace one order end to end.
+4. Run the checks in the [README](../README.md). You can prove the project is green.
 
 ## By Task
 
@@ -20,6 +21,10 @@ Audience: anyone working in or reviewing the sample shop.
 | Understand the system | [architecture.md](architecture.md) |
 | Check what the product must do | [requirements.md](requirements.md) |
 | Look up a payload field | [contracts.md](contracts.md) |
+| Look up a table | [data-model.md](data-model.md) |
+| Trace an order | [runtime-flows.md](runtime-flows.md) |
+| Understand login | [authentication.md](authentication.md) |
+| See what each repository provisions | [infrastructure.md](infrastructure.md) |
 
 ## Decisions and History
 

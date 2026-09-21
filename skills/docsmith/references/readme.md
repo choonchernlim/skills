@@ -34,7 +34,7 @@ One sentence, under 120 characters, saying what this project is.
 Two or three plain sentences: the problem, who has it, what this does about
 it. No identifiers or paths yet.
 
-(one diagram block, see the mermaid reference)
+(one context diagram block, see the mermaid reference)
 
 | Inventory | Current Set |
 | --- | --- |
@@ -64,6 +64,10 @@ Fill guidance:
 
 - The Introduction routes; depth lives in `docs/`. Every fact here is one
   sentence plus a link to its owner.
+- The diagram shows context only: the project as one `SYSTEM` node among its
+  users and external systems.
+  - The node's Source is `docs/architecture.md`, which draws the inside.
+  - Under four nodes, write a sentence instead.
 - The Resources table lists the docs index, every guide, and the ADR
   directory, one row each.
 - Contributing, license, and security link to their own files.
@@ -110,4 +114,5 @@ Fill guidance:
   generated artifacts are omitted.
 - Cross-cutting facts (team ownership, extension rule, contracts) are one
   sentence plus a link to the owning `docs/` guide, never restated.
-- The optional diagram shows this folder's internal dependencies only.
+- The optional diagram shows this folder's internal dependencies only, never
+  a relationship that `docs/architecture.md` already draws.

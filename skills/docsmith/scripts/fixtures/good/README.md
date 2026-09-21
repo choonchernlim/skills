@@ -12,34 +12,26 @@ A storefront that checks inventory before accepting an order.
 Customers need current inventory while placing an order. This project checks
 the warehouse system before it stores each order.
 
-One request path shows how the pieces relate.
+The shop sits between its customers and two outside systems.
 
 ```mermaid
 flowchart TD
-  subgraph Web["<span style='display:inline-block;width:280px;text-align:left'>Web Team<br/>[DEPLOYMENT]</span>"]
-    Browser["Storefront UI<br/>[UI]"]
-    Route[/"Order API<br/>[API]"/]
-  end
+  Customer["Customer<br/>[PERSON]"]
+  Shop["Sample Shop<br/>[SYSTEM]"]
+  Warehouse["Warehouse System<br/>[SYSTEM]"]
+  Identity["Identity Provider<br/>[SYSTEM]"]
 
-  subgraph Orders["<span style='display:inline-block;width:280px;text-align:left'>Order Team<br/>[DEPLOYMENT]</span>"]
-    Inventory["Inventory Client<br/>[SERVICE]"]
-    Store[("Order Store<br/>[DATABASE]")]
-  end
-
-  Browser -->|"1. submits order"| Route
-  Route -->|"2. checks stock"| Inventory
-  Route -->|"stores"| Store
+  Customer -->|"places orders"| Shop
+  Shop -->|"checks stock"| Warehouse
+  Shop -->|"verifies customers"| Identity
 ```
-
-1. The browser sends one order to its API.
-2. The API checks stock through the inventory client.
 
 | Node | Source |
 | --- | --- |
-| Storefront UI | [src/](src/) |
-| Order API | [src/api.ts](src/api.ts) |
-| Inventory Client | [src/inventory/client.ts](src/inventory/client.ts) |
-| Order Store | - |
+| Customer | - |
+| Sample Shop | [docs/architecture.md](docs/architecture.md) |
+| Warehouse System | - |
+| Identity Provider | - |
 
 ## Getting Started
 

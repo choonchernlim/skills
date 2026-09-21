@@ -17,6 +17,7 @@ by one careless read. This playbook removes both.
 - [Scope Skills to Folders](#scope-skills-to-folders)
 - [Block Costly Reads](#block-costly-reads)
 - [Cap Tool Output](#cap-tool-output)
+- [Make Large Source Cheap](#make-large-source-cheap)
 - [Place MCP Servers](#place-mcp-servers)
 - [Verify](#verify)
 - [Hand to the User](#hand-to-the-user)
@@ -34,6 +35,11 @@ by one careless read. This playbook removes both.
 | `DENY-SEARCH` | List the file in the root `.ignore`. |
 | `CFG-CAP` | Set the output cap in each agent's project config. |
 | `CFG-PARSE` | Repair the JSON; a broken file disables its hooks and denies. |
+| `SRC-LARGE` | Split the file, or ship the outline tool so agents read one range. |
+
+Run `python3 scripts/audit_tokens.py <repo> --fix` first. It applies
+`DENY-MISSING`, `DENY-SEARCH`, and `CFG-CAP` without judgement. Naming the
+files under Do Not Read stays with you.
 
 ## Keep One Copy of Each Skill
 
@@ -130,6 +136,19 @@ the limit a setting and not a habit.
    ```
 
 Codex loads a project `config.toml` only after the project is trusted.
+
+## Make Large Source Cheap
+
+A source file cannot be denied, because agents must edit it. One full read
+of an 80 KB file costs about 20,000 tokens, more than most other findings.
+
+- Split the file by responsibility when the project can afford the refactor.
+- Otherwise copy `assets/outline` to `scripts/outline` and name it in
+  `AGENTS.md`. An agent outlines the file, then reads one range.
+- For Claude Code, add the read guard from the hooks playbook.
+
+`SRC-LARGE` is a note: it never fails the audit. It clears once
+`scripts/outline` exists and `AGENTS.md` names it.
 
 ## Place MCP Servers
 

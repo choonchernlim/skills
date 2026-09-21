@@ -25,6 +25,7 @@ in every repository. The audit reads it on each run and never writes to it.
 | `USR-INS` | `~/.claude/CLAUDE.md` or `~/.codex/AGENTS.md` is over budget. | Move detail out of the global file. Keep only rules that apply everywhere. |
 | `USR-SKILL-BUDGET` | Too many skills, or too many description characters, load in every session. | Remove or disable unused skills. Move project-specific skills into that project. |
 | `USR-SKILL-DESC` | One user-level skill description is too long. | Shorten the description to its triggers. |
+| `USR-MCP` | A Codex MCP server lists no `enabled_tools`, so every tool loads in every session. | List the tools in use, or move the server into the project that needs it. |
 
 ## Read the Section
 
@@ -37,8 +38,9 @@ any work starts, measured from the files on disk.
   `Claude Code cloud sync`.
 - One instruction file linked for both agents is priced once, because a
   session runs one agent.
-- MCP servers are listed by name and priced by estimate. The audit never
-  prints their settings, which can hold secrets.
+- MCP servers are listed by name and priced per agent, by estimate. Claude
+  Code defers tool schemas; Codex loads every enabled tool.
+- The audit never prints MCP settings, which can hold secrets.
 
 ## Fixable Here or Proposal Only
 

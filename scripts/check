@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+"""The single check entry point. Copy this file to scripts/check and never edit it.
+
+Purpose: run every check the same way for people, CI, and both agents; print one line
+per check; keep the detail in one log per check and one JSON summary.
+The checks are data: scripts/checks.json, beside this file. See `--help-config`.
+Invariants: standard library only; exit 0 pass, 1 findings, 2 environment not ready.
+Usage: scripts/check [--full | --impacted] | doctor | fix
+"""
+from __future__ import annotations
+
+import argparse
+import fnmatch
+import glob
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+CONFIG = os.path.join(HERE, "checks.json")
+OUT = os.path.join(ROOT, ".check")
+MIN_PYTHON = (3, 8)
+KEEP_RUNS = 10
+MAX_FINDINGS = 20
+SHOWN_FINDINGS = 5
+
+CONFIG_HELP = """scripts/checks.json:
+{
+  "requires": ["git"],            tools that must be on PATH, verified by `doctor`
+  "inert": ["LICENSE", "docs/*"], changed paths that need no check
+  "checks": [{
+    "id": "unit",                 one id per tool, so a failure names one log
+    "cmd": ["pytest", "-q", "-rf", "{glob:tests/**/*.py}"],
+    "paths": ["src/*", "tests/*"],  changed paths that trigger it under --impacted
+    "parse": "pytest",            located | pytest | blocks | {"regex": "(?P<file>..)(?P<line>..)(?P<message>..)"}
+    "cwd": ".", "env": {"COLUMNS": "200"},
+    "fix": ["ruff", "check", "--fix"]  optional safe autofix, run by `fix`
+  }]
+}
+A changed path that matches no check and no inert pattern runs every check, and the run says so."""
+
+LOCATED = re.compile(r"^(?P<file>[^\s:][^:\n]*):(?P<line>\d+)(?::\d+)?:\s*(?P<message>.*)$", re.M)
+PYTEST = re.compile(r"^FAILED (?P<file>[^\s:]+)::(?P<message>.*)$", re.M)
+RULE = re.compile(r"^(?:error: )?\[?([A-Z][A-Z0-9_-]*\d*)\]?[: ]\s*(.*)$")
+
+
+class NotReady(Exception):
+    """The environment, not the code, needs repair: exit 2."""
+
+
+def load_config() -> dict:
+    try:
+        with open(CONFIG, encoding="utf-8") as source:
+            config = json.load(source)
+    except OSError:
+        raise NotReady(f"{os.path.relpath(CONFIG, ROOT)} is missing; run with --help-config for its shape")
+    except ValueError as error:
+        raise NotReady(f"{os.path.relpath(CONFIG, ROOT)} is not valid JSON: {error}")
+    checks = config.get("checks") if isinstance(config, dict) else None
+    if not isinstance(checks, list) or not checks:
+        raise NotReady("checks.json needs a non-empty `checks` list")
+    seen = set()
+    for check in checks:
+        if not isinstance(check, dict) or not check.get("id") or not isinstance(check.get("cmd"), list):
+            raise NotReady(f"every check needs an `id` and a `cmd` list: {check!r}")
+        if check["id"] in seen:
+            raise NotReady(f"duplicate check id `{check['id']}`")
+        seen.add(check["id"])
+    return config
+
+
+def doctor(config: dict) -> list:
+    problems = []
+    if sys.version_info < MIN_PYTHON:
+        problems.append(f"python {'.'.join(map(str, MIN_PYTHON))} or newer is required, found {sys.version.split()[0]}")
+    for tool in config.get("requires", []):
+        if shutil.which(tool) is None:
+            problems.append(f"`{tool}` is not on PATH")
+    return problems
+
+
+def changed_paths() -> list:
+    out = []
+    for cmd in (["git", "diff", "--name-only", "HEAD"], ["git", "ls-files", "--others", "--exclude-standard"]):
+        done = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+        if done.returncode != 0:
+            raise NotReady("--impacted needs a git repository with at least one commit")
+        out += done.stdout.splitlines()
+    return sorted(set(out))
+
+
+def select(config: dict, paths: list):
+    """The checks the paths trigger, and the path that forced a full run, if any."""
+    checks, chosen = config["checks"], []
+    inert = list(config.get("inert", [])) + [".check/*"]
+    for path in paths:
+        hits = [c for c in checks if any(fnmatch.fnmatch(path, g) for g in c.get("paths", []))]
+        if not hits and not any(fnmatch.fnmatch(path, g) for g in inert):
+            return checks, path
+        chosen += [c for c in hits if c not in chosen]
+    return [c for c in checks if c in chosen], None
+
+
+def expand(cmd: list) -> list:
+    out = []
+    for part in cmd:
+        match = re.fullmatch(r"\{glob:(.+)\}", part)
+        if match:
+            found = glob.glob(os.path.join(ROOT, match.group(1)), recursive=True)
+            out += sorted(os.path.relpath(f, ROOT) for f in found)
+        else:
+            out.append(part)
+    return out
+
+
+def finding(match, prefix: str = "") -> dict:
+    groups = match.groupdict()
+    path = groups.get("file")
+    if path and os.path.isabs(path):
+        path = os.path.relpath(path, ROOT)
+    message, rule = (groups.get("message") or "").strip(), groups.get("rule")
+    if not rule:
+        coded = RULE.match(message)
+        if coded:
+            rule, message = coded.groups()
+    line = groups.get("line")
+    return {"file": path, "line": int(line) if line else None, "rule": rule, "message": (prefix + message)[:200]}
+
+
+def parse(kind, log: str) -> list:
+    """One finding per failure. The tool's own format first, then failure blocks, then the log tail."""
+    pattern = {"located": LOCATED, "pytest": PYTEST}.get(kind) if isinstance(kind, str) else None
+    if isinstance(kind, dict) and kind.get("regex"):
+        pattern = re.compile(kind["regex"], re.M)
+    if pattern:
+        found = [finding(m) for m in pattern.finditer(log)]
+        if found:
+            return found
+    found = []
+    for block in re.split(r"\n\s*\n", log.strip()):
+        lines = block.strip().splitlines()
+        if not lines or re.match(r"^\d+ (failure|finding|error|problem)s?\b|^FAILED: ", lines[0]):
+            continue
+        inside = LOCATED.search(block)
+        found.append(finding(inside, lines[0] + " " if inside.start() else "") if inside
+                     else {"file": None, "line": None, "rule": None, "message": lines[0][:200]})
+    return found or [{"file": None, "line": None, "rule": None, "message": (log.strip().splitlines() or ["no output"])[-1][:200]}]
+
+
+def run(check: dict, log_dir: str, key: str = "cmd") -> dict:
+    start = time.monotonic()
+    try:
+        done = subprocess.run(
+            expand(check[key]), cwd=os.path.join(ROOT, check.get("cwd", ".")), capture_output=True, text=True,
+            env={**os.environ, **check.get("env", {})},
+        )
+        code, log = done.returncode, done.stdout + done.stderr
+    except OSError as error:
+        raise NotReady(f"{check['id']}: cannot start `{check[key][0]}`: {error}")
+    log_path = os.path.join(log_dir, f"{check['id']}.log")
+    with open(log_path, "w", encoding="utf-8") as target:
+        target.write(log)
+    found = parse(check.get("parse", "located"), log) if code else []
+    return {
+        "id": check["id"], "status": "passed" if code == 0 else "failed",
+        "duration": round(time.monotonic() - start, 2),
+        "log": os.path.relpath(log_path, ROOT), "logBytes": len(log.encode()),
+        "findingCount": len(found), "findings": found[:MAX_FINDINGS],
+    }
+
+
+def report(results: list, label: str = "PASS") -> None:
+    for result in results:
+        print(f"[{label if result['status'] == 'passed' else 'FAIL'}] {result['id']} {result['duration']}s")
+        for item in result["findings"][:SHOWN_FINDINGS]:
+            where = f"{item['file']}:{item['line'] or 0}: " if item["file"] else ""
+            print(f"       {where}{item['rule'] + ' ' if item['rule'] else ''}{item['message']}")
+        if result["findingCount"] > SHOWN_FINDINGS:
+            print(f"       ... {result['findingCount'] - SHOWN_FINDINGS} more in {result['log']}")
+
+
+def main(argv: list) -> int:
+    parser = argparse.ArgumentParser(description="Run this repository's checks.")
+    parser.add_argument("mode", nargs="?", choices=["doctor", "fix"], help="doctor verifies the environment; fix runs the safe autofixes")
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument("--full", action="store_true", help="run every check; the default, and the one to run before handoff")
+    scope.add_argument("--impacted", action="store_true", help="run only the checks the changed paths trigger")
+    parser.add_argument("--help-config", action="store_true", help="show the shape of scripts/checks.json")
+    args = parser.parse_args(argv)
+    if args.help_config:
+        print(CONFIG_HELP)
+        return 0
+    try:
+        config = load_config()
+        problems = doctor(config)
+        if problems:
+            raise NotReady("; ".join(problems))
+        if args.mode == "doctor":
+            print("[PASS] doctor")
+            return 0
+        checks, cause = config["checks"], None
+        if args.impacted:
+            checks, cause = select(config, changed_paths())
+            if cause:
+                print(f"[INFO] unrecognized path '{cause}' runs every check; classify it in scripts/checks.json")
+        key = "fix" if args.mode == "fix" else "cmd"
+        checks = [check for check in checks if isinstance(check.get(key), list)]
+        if not checks:
+            print("[PASS] nothing to fix" if key == "fix" else "[PASS] no changed path needs a check")
+            return 0
+        run_id = time.strftime("%Y%m%d-%H%M%S") + ("-fix" if key == "fix" else "")
+        log_dir = os.path.join(OUT, "logs", run_id)
+        os.makedirs(log_dir, exist_ok=True)
+        results = [run(check, log_dir, key) for check in checks]
+    except NotReady as error:
+        print(f"[ENV] {error}")
+        return 2
+    for old in sorted(glob.glob(os.path.join(OUT, "logs", "*")))[:-KEEP_RUNS]:
+        shutil.rmtree(old, ignore_errors=True)
+    report(results, "FIXED" if key == "fix" else "PASS")
+    if key == "cmd":
+        with open(os.path.join(OUT, "summary.json"), "w", encoding="utf-8") as target:
+            json.dump({"run": run_id, "scope": "impacted" if args.impacted else "full",
+                       "fullRunCause": cause, "checks": results}, target, indent=2)
+    return 1 if any(result["status"] == "failed" for result in results) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

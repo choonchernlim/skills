@@ -23,7 +23,7 @@ Each skill is self-contained, so you can install one without the others.
 | Skill | What It Does |
 | --- | --- |
 | [grill-me](skills/grill-me/SKILL.md) | Interviews you about a plan or design until every open decision is resolved, then writes the plan. |
-| [tokenminator](skills/tokenminator/SKILL.md) | Audits a repository for wasted agent tokens and fixes one area per run. |
+| [tokenminator](skills/tokenminator/SKILL.md) | Audits a repository for wasted agent tokens, fixes the mechanical part by script, and ships the check runner. |
 | [docsmith](skills/docsmith/SKILL.md) | Writes READMEs, guides, requirements, and ADRs to one house style, checked by a linter. |
 
 ## Getting Started
@@ -93,12 +93,14 @@ Claude Code.
 
 #### Run the Checks
 
-Two skills ship a self-test for their script. Run both before you commit a change.
+One command runs every check: the script self-tests, the docs lint, and the
+`AGENTS.md` path test. Run it before you commit a change.
 
 ```bash
-python3 skills/tokenminator/scripts/test_audit_tokens.py
-python3 skills/docsmith/scripts/test_lint_docs.py
+scripts/check --full
 ```
+
+It prints one line per check. Logs and a JSON summary land in `.check/`.
 
 ## Live Checkout
 

@@ -7,12 +7,13 @@ Type: how-to
 
 Audience: the agent building or adapting a project's check entry point.
 
-Validation is the most repeated work in a session. This skill ships no
-runner. It states the contract, and you build it for the project's stack.
+Validation is the most repeated work in a session. This skill ships a runner
+that meets the contract below. The project supplies its checks as data.
 
 ## Table of Contents
 
 - [Codes This Fixes](#codes-this-fixes)
+- [Install the Runner](#install-the-runner)
 - [The Contract](#the-contract)
 - [Report Findings, Not Logs](#report-findings-not-logs)
 - [Define Each Check Once](#define-each-check-once)
@@ -28,6 +29,31 @@ runner. It states the contract, and you build it for the project's stack.
 | `RUN-NOSUMMARY` | Write a machine-readable summary file. |
 | `RUN-NOISY` | Send each tool's output to its own log file. |
 | `CI-DUP` | Make CI call the entry point. |
+
+## Install the Runner
+
+Wrap an entry point the project already has. Install the shipped one only
+when there is none.
+
+1. Copy `assets/check` to `scripts/check`. Never edit the copy.
+2. Write `scripts/checks.json` beside it. Run `scripts/check --help-config`
+   for its shape.
+3. Give every tool its own check: an id, a command, the paths that trigger
+   it, and how to parse its failures.
+4. List paths that need no check under `inert`. Any other unknown path runs
+   every check, and the run says which path caused it.
+5. Add `.check/` to `.gitignore`, and name `scripts/check` in `AGENTS.md`.
+6. Run `--fix-rules-block` again, so the rules block names the entry point.
+
+| `parse` | Reads |
+| --- | --- |
+| `located` | `path:line: message`, with an optional column and rule code |
+| `pytest` | `FAILED path::test - message` |
+| `blocks` | The first line of each failure block, with the first location inside it |
+| `{"regex": ...}` | Any tool, through named groups `file`, `line`, `rule`, `message` |
+
+The runner has no pinned-tools file. It verifies `requires` from
+`checks.json` in `doctor` mode, and a missing tool exits 2.
 
 ## The Contract
 
@@ -115,3 +141,7 @@ always drift.
 3. Confirm every other check still reports separately.
 4. Confirm a passing run prints one line per check and nothing else.
 5. Re-run the audit and confirm the code cleared.
+
+These rules apply while building checks, so they live here and not in the
+always-on rules block. Script anything done twice. Measure durations and log
+sizes before optimizing a check.

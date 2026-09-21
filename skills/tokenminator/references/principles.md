@@ -78,8 +78,17 @@ that Codex relies on. A session runs one agent, so each guard's finding
 carries half the file's cost. With both guards missing the two findings sum
 to the whole cost, never to double.
 
-`ORIENT-MISSING` is estimated but scaled: 1,500 tokens plus 12 per tracked
-file, capped at the `XL` band. A small repository is cheap to re-explore.
+Three estimates scale with the repository, so a small one is not overpriced:
+
+| Code | Before | After |
+| --- | --- | --- |
+| `ORIENT-MISSING` | 1,500 tokens plus 12 per tracked file, capped at `XL` | 15% of before |
+| `AGT-MISSING` | The same exploring cost | The instruction budget the new file may spend |
+| `RUN-ENTRY` | 1,500 tokens per check signal, capped at `L`, four loops | 15% of before |
+
+`SRC-LARGE` is measured: one whole read of the file. The audit also prints
+`measured today`: what the root instruction files cost in every session, and
+the log size of the last check run from `.check/summary.json`.
 
 These numbers rank areas against each other. They are not a bill. When the
 repository contradicts an estimate, say so in the report.
@@ -88,6 +97,8 @@ repository contradicts an estimate, say so in the report.
 
 1. **Determinism before intelligence.** If a script can decide it, the model
    should not. A script costs nothing to rerun and gives the same answer.
+   - Fixing follows the same rule. `--fix` and the templates under `assets/`
+     replace text the model would write again in every repository.
 2. **One entry point.** Every check runs through one command. The command
    list then exists in one place for people, hooks, CI, and both agents.
 3. **Quiet by default.** A passing check prints one line. Tool output goes
@@ -114,3 +125,5 @@ Three more rules govern how work is done:
   tests or five hundred. Test selection saves time, not context.
 - **Cached context is cheap, not free.** Trimming a few hundred tokens of
   instructions matters less than removing one 20,000 token log read.
+- **A run of this skill is not free.** Once only low findings remain, the
+  audit batches every area into one run.

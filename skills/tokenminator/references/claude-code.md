@@ -70,6 +70,8 @@ playbook step depends on it.
 | CC-16 | Tool Search defers MCP tool schemas, so an idle MCP server costs little. Each tool result still enters context. | 2026-09-19 | 2.1.277 | code.claude.com/docs/en/mcp |
 | CC-17 | An MCP server declared on a subagent stays out of the main conversation. | 2026-09-19 | 2.1.277 | code.claude.com/docs/en/sub-agents |
 | CC-18 | Project MCP servers are declared in `.mcp.json` at the repository root. | 2026-09-19 | 2.1.277 | code.claude.com/docs/en/mcp |
+| CC-25 | A `PreToolUse` hook cancels a tool call by printing `hookSpecificOutput` with `permissionDecision: "deny"` and a reason, then exiting 0. | 2026-09-20 | 2.1.278 | code.claude.com/docs/en/hooks-guide |
+| CC-26 | For `Read`, `tool_input.file_path` arrives absolute. `offset` and `limit` are set only when the call asks for a range. | 2026-09-20 | 2.1.278 | code.claude.com/docs/en/hooks, Read tool schema |
 
 ## Output and Search
 

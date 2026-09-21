@@ -1,0 +1,16 @@
+{
+  "bashOutputMaxChars": 10000,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/scripts/read_guard.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

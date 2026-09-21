@@ -3,7 +3,7 @@
 
 Purpose: prove the audit accepts the good fixture and raises the expected codes
 for every bad case, so a rule change cannot silently disable a check, and prove
-the one mutation (--fix-rules-block) is safe to run repeatedly.
+the two mutations (--fix-rules-block and --fix) are safe to run repeatedly.
 Usage: python3 scripts/test_audit_tokens.py
 """
 from __future__ import annotations
@@ -44,7 +44,7 @@ EXPECTED: dict[str, tuple[list[str], set[str]]] = {
         {"SKILL-DUP", "SKILL-LINK", "SKILL-BUDGET", "SKILL-DESC"},
     ),
     "deny": (SMALL, {"DENY-DEAD", "DENY-SEARCH", "DNR-UNLISTED", "CFG-PARSE"}),
-    "caps": ([], {"CFG-CAP"}),
+    "caps": (["--limit", "source=100"], {"CFG-CAP", "SRC-LARGE"}),
     "runner": ([], {"RUN-UNDOC", "RUN-NOSUMMARY", "RUN-NOISY", "CI-DUP"}),
     "hooks-one": ([], {"HOOK-ONE", "HOOK-HOME"}),
     "hooks-diff": ([], {"HOOK-DIFF"}),
@@ -94,7 +94,7 @@ def codes(root: str, *extra: str) -> tuple[int, set[str]]:
 
 def outside_block(text: str) -> str:
     # Both names: a legacy block is outside the text the fix must preserve, same as a current one.
-    return re.sub(r"<!-- BEGIN:(?:tokenminator|saving-private-tokens)-rules v\d+ -->.*?<!-- END:(?:tokenminator|saving-private-tokens)-rules -->\n?", "", text, flags=re.S)
+    return re.sub(r"<!-- BEGIN:(?:tokenminator|saving-private-tokens)-rules v\d+(?: \|[^>\n]*)? -->.*?<!-- END:(?:tokenminator|saving-private-tokens)-rules -->\n?", "", text, flags=re.S)
 
 
 def write(root: str, relative: str, text: str) -> None:
@@ -137,6 +137,10 @@ def user_cases() -> tuple[list[str], set[str]]:
         os.symlink(os.path.join(owner, "policy.md"), os.path.join(home, ".codex", "AGENTS.md"))
         os.symlink(os.path.join(owner, "skills"), os.path.join(home, ".claude", "skills"))
         write(home, ".claude.json", '{"mcpServers": {"demo": {"env": {"TOKEN": "secret"}}}}')
+        # Codex loads every tool of a server that lists none, so that server is a finding.
+        with open(os.path.join(owner, ".codex", "config.toml"), "a", encoding="utf-8") as target:
+            target.write('\n[mcp_servers.heavy]\ncommand = "heavy"\n\n[mcp_servers.lean]\ncommand = "lean"\nenabled_tools = ["one", "two"]\n')
+        os.symlink(os.path.join(owner, ".codex", "config.toml"), os.path.join(home, ".codex", "config.toml"))
         for root in (owner, other):
             run(root, "--fix-rules-block")
         limits = ["--limit", "ins=100", "--limit", "userchars=50", "--limit", "desc=40"]
@@ -152,7 +156,7 @@ def user_cases() -> tuple[list[str], set[str]]:
             after = snapshot(scratch)
         finally:
             HOME[0] = empty
-        expected = {"USR-INS", "USR-SKILL-BUDGET", "USR-SKILL-DESC"}
+        expected = {"USR-INS", "USR-SKILL-BUDGET", "USR-SKILL-DESC", "USR-MCP"}
         raised = set(inside) & expected
         if raised != expected:
             failures.append(f"user scope: expected {sorted(expected)}, got {sorted(inside)}")
@@ -168,6 +172,14 @@ def user_cases() -> tuple[list[str], set[str]]:
             failures.append("user scope: one shared instruction file should be priced once for both agents")
         if "secret" in human or "demo" not in human:
             failures.append("user scope: MCP servers should be listed by name only")
+        scope = json.loads(out)["userScope"]
+        agents = {row.get("agent"): row["tokens"] for row in scope["baseline"] if row.get("agent")}
+        shared = sum(row["tokens"] for row in scope["baseline"] if not row.get("agent"))
+        if set(agents) != {"claude", "codex"} or scope["baselineTokens"] != shared + max(agents.values()):
+            failures.append(f"user scope: a session runs one agent, so the total counts the costlier one, got {scope}")
+        heavy = inside.get("USR-MCP", {}).get("message", "")
+        if "heavy" not in heavy or "lean" in heavy:
+            failures.append(f"user scope: only the Codex server with no `enabled_tools` is a finding, got {heavy!r}")
         if status_mixed != 2:
             failures.append("user scope: --user with --fix-rules-block should exit 2")
         if before != after:
@@ -200,6 +212,7 @@ def composed_cases() -> list[str]:
     # tests, `nix flake check` is the entry point, and the block carries no browser rules.
     with tempfile.TemporaryDirectory() as scratch:
         write(scratch, "flake.nix", "{ outputs = _: { checks = { }; }; }\n")
+        write(scratch, "flake.lock", "{}\n")
         write(scratch, "AGENTS.md", "# Project\n\nRun `nix flake check`.\n\n## Where Things Live\n\n`flake.nix`\n")
         claude_layer(scratch)
         write(scratch, "home/skills/demo/SKILL.md", "---\nname: demo\ndescription: demo\n---\n")
@@ -284,6 +297,141 @@ def composed_cases() -> list[str]:
             failures.append(f"next: the check runner should come before hooks, got {step}")
     if following(GOOD) is not None:
         failures.append("next: a clean repository should have no next area")
+
+    # A folder-only ignore pattern covers a runtime folder that does not exist yet, so an
+    # instruction may name it. A missing path that git does not ignore is still dead.
+    with tempfile.TemporaryDirectory() as scratch:
+        subprocess.run(["git", "init", "-q", scratch], check=True)
+        write(scratch, ".gitignore", "work/cache/\n")
+        write(scratch, "work/kept.txt", "kept\n")
+        write(scratch, "AGENTS.md", "# Project\n\n## Where Things Live\n\n`work/kept.txt`, `work/cache/`, `work/gone/`\n")
+        write(scratch, "CLAUDE.md", "@AGENTS.md\n")
+        _, out, _ = run(scratch, "--format", "json", "--today", TODAY, "--no-user")
+        dead = [f["message"] for f in json.loads(out)["findings"] if f["code"] == "PATH-DEAD"]
+        if len(dead) != 1 or "work/gone/" not in dead[0]:
+            failures.append(f"ignored folder: only the path git does not ignore is dead, got {dead}")
+
+    # A skill collection: with no source outside the skills, the skills are the project,
+    # so their tests count and the audit is stable before and after a root script appears.
+    with tempfile.TemporaryDirectory() as scratch:
+        write(scratch, "README.md", "# Skills\n")
+        write(scratch, "skills/demo/SKILL.md", "---\nname: demo\ndescription: demo\n---\n")
+        write(scratch, "skills/demo/scripts/test_demo.py", "def test(): pass\n")
+        _, out, _ = run(scratch, "--format", "json", "--today", TODAY, "--no-user")
+        result = json.loads(out)
+        if "python" not in result["stacks"] or "RUN-ENTRY" not in {f["code"] for f in result["findings"]}:
+            failures.append(f"skill collection: the skills are the project, got stacks {result['stacks']}")
+
+    # The block names what the repository has: no entry line before an entry point exists,
+    # the real command once it does, and no package-manager hint without its lockfile.
+    with tempfile.TemporaryDirectory() as scratch:
+        write(scratch, "AGENTS.md", "# Project\n")
+        write(scratch, "app.py", "print('x')\n")
+        _, block, _ = run(scratch, "--print-rules-block")
+        if "Run checks with" in block or "uv tree" in block:
+            failures.append("composed block: no entry line without an entry point, no hint without a lockfile")
+        write(scratch, "tests/fixtures/sample/yarn.lock", "x\n")
+        _, block, _ = run(scratch, "--print-rules-block")
+        if "yarn list" in block:
+            failures.append("composed block: a lockfile inside a test fixture is not the project's")
+        write(scratch, "Makefile", "check:\n\tpython3 app.py\n")
+        write(scratch, "uv.lock", "x\n")
+        _, block, _ = run(scratch, "--print-rules-block")
+        if "Run checks with `make check`" not in block or "`uv tree`" not in block:
+            failures.append("composed block: expected the real entry point and the uv hint")
+        if "managed by the tokenminator skill" not in block.splitlines()[0] or "- Managed by" in block:
+            failures.append("composed block: the managed-by note belongs inside the begin marker")
+
+    # The instruction budget follows the repository: the same file is over budget in a
+    # small repository and within it in a large one. Its real cost is always reported.
+    with tempfile.TemporaryDirectory() as scratch:
+        write(scratch, "AGENTS.md", "# Project\n\n## Where Things Live\n\n" + "word " * 600 + "\n")
+        write(scratch, "CLAUDE.md", "@AGENTS.md\n")
+        expected = sum(os.path.getsize(os.path.join(scratch, name)) // 4 for name in ("AGENTS.md", "CLAUDE.md"))
+        if "INS-LONG" not in findings(scratch):
+            failures.append("scaled budget: a 3,000 byte file should be over budget in a two-file repository")
+        for number in range(200):
+            write(scratch, f"src/module_{number}.py", "x = 1\n")
+        if "INS-LONG" in findings(scratch):
+            failures.append("scaled budget: the same file should fit the budget of a 200-file repository")
+        write(scratch, ".check/summary.json", '{"checks": [{"id": "a", "logBytes": 400}, {"id": "b", "logBytes": 40}]}\n')
+        _, out, _ = run(scratch, "--format", "json", "--today", TODAY, "--no-user")
+        measured = json.loads(out)["measured"]
+        if measured.get("instructionFiles", {}).get("tokens") != expected:
+            failures.append(f"measured: instruction files should be priced from their real size, got {measured}")
+        if measured.get("lastCheckRun") != {"logTokens": 110, "checks": 2}:
+            failures.append(f"measured: the last check run should be read from its summary, got {measured}")
+
+    # The read guard is a Claude-only extra layer, so it never makes the two hook blocks differ.
+    with tempfile.TemporaryDirectory() as scratch:
+        work = os.path.join(scratch, "work")
+        shutil.copytree(GOOD, work, symlinks=True)
+        path = os.path.join(work, ".claude", "settings.json")
+        with open(path, encoding="utf-8") as source:
+            settings = json.load(source)
+        settings.setdefault("hooks", {})["PreToolUse"] = [
+            {"matcher": "Read", "hooks": [{"type": "command", "command": "scripts/read_guard.py"}]}
+        ]
+        write(work, ".claude/settings.json", json.dumps(settings))
+        found = set(findings(work)) & {"HOOK-ONE", "HOOK-DIFF", "HOOK-HOME"}
+        if found:
+            failures.append(f"read guard: a Claude-only guard must not count as a hook difference, got {sorted(found)}")
+
+    # --fix applies what needs no judgement, leaves the rest, repeats safely, and never
+    # writes through a link that leaves the repository.
+    with tempfile.TemporaryDirectory() as scratch:
+        work, elsewhere = os.path.join(scratch, "work"), os.path.join(scratch, "elsewhere.json")
+        write(work, "AGENTS.md", "# Project\n\n## Where Things Live\n\n`app.py`\n")
+        write(work, "app.py", "print('x')\n")
+        write(work, "package-lock.json", "{}\n")
+        write(work, ".codex/config.toml", "model = \"x\"\n\n[mcp_servers.demo]\ntool_output_token_limit = 9\n")
+        _, out, _ = run(work, "--fix", "--today", TODAY, *SMALL)
+        left = set(findings(work, *SMALL))
+        mechanical = {"CFG-CAP", "CLD-IMPORT", "CLD-COMPACT", "DENY-MISSING", "DENY-SEARCH", "RULES-MISSING"}
+        if left & mechanical or "DNR-MISSING" not in left:
+            failures.append(f"--fix: mechanical codes should clear and judgement codes stay, left {sorted(left)}:\n{out}")
+        with open(os.path.join(work, ".codex/config.toml"), encoding="utf-8") as source:
+            toml = source.read()
+        if not toml.startswith("tool_output_token_limit = 2500\n") or "[mcp_servers.demo]\ntool_output_token_limit = 9" not in toml:
+            failures.append(f"--fix: the Codex cap belongs above every table and the table is untouched, got {toml!r}")
+        before = snapshot(work)
+        _, again, _ = run(work, "--fix", "--today", TODAY, *SMALL)
+        if snapshot(work) != before or "fixed nothing" not in again:
+            failures.append(f"--fix: a second run should change nothing, got:\n{again}")
+        os.remove(os.path.join(work, ".claude/settings.json"))
+        write(scratch, "elsewhere.json", "{}\n")
+        os.symlink(elsewhere, os.path.join(work, ".claude/settings.json"))
+        _, out, _ = run(work, "--fix", "--today", TODAY, *SMALL)
+        with open(elsewhere, encoding="utf-8") as source:
+            if source.read() != "{}\n" or "skipped .claude/settings.json" not in out:
+                failures.append(f"--fix: a settings file that links outside the repository must be refused, got:\n{out}")
+
+    # A re-audit costs three lines, and once only low findings remain one run takes them all.
+    with tempfile.TemporaryDirectory() as scratch:
+        work = os.path.join(scratch, "work")
+        shutil.copytree(os.path.join(BAD, "terraform"), work)
+        write(work, "scripts/check", "#!/bin/sh\necho quiet > .check.log --quiet summary.json\n")
+        write(work, "AGENTS.md", "# Project\n\nRun `scripts/check`.\n\n## Where Things Live\n\n`main.tf`\n")
+        run(work, "--fix-rules-block", "--no-user")
+        _, brief, _ = run(work, "--expect-cleared", "RULES-MISSING", "CFG-CAP", "--today", TODAY)
+        lines = brief.splitlines()
+        if len(lines) != 3 or lines[0] != "cleared: RULES-MISSING | NOT cleared: CFG-CAP" or not lines[1].startswith("open: "):
+            failures.append(f"brief: expected three lines naming what cleared, got {lines}")
+        step = following(work)
+        if not step or set(step["areas"]) < {"context-diet", "infrastructure"} or "only low findings remain" not in lines[2]:
+            failures.append(f"batching: low findings in several areas should share one run, got {step}")
+    step = following(os.path.join(BAD, "bare"), *SMALL)
+    if len(step["areas"]) != 1:
+        failures.append(f"batching: a high finding still gets a run of its own, got {step}")
+
+    # A missing AGENTS.md is priced as the exploring it replaces against the budget it may
+    # spend, and a missing entry point by how many tools a check loop must rediscover.
+    found = findings(os.path.join(BAD, "bare"), *SMALL)
+    missing, entry = found["AGT-MISSING"], found["RUN-ENTRY"]
+    if missing["measured"] or missing["after"] != 2000 // 4 or missing["before"] <= missing["after"]:
+        failures.append(f"scaled estimates: AGT-MISSING should cost exploring, less the budget, got {missing}")
+    if entry["before"] % (1500 * 4) or entry["before"] > 6000 * 4:
+        failures.append(f"scaled estimates: RUN-ENTRY should scale with the check signals, got {entry}")
 
     return failures
 

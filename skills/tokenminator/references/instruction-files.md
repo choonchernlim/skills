@@ -37,6 +37,10 @@ This playbook gives one source of truth and keeps it from drifting.
 | `INS-LONG` | Move detail into docs and link to them. |
 | `RULES-MISSING`, `RULES-OUTDATED`, `RULES-EDITED` | Run `--fix-rules-block`. |
 
+Run `python3 scripts/audit_tokens.py <repo> --fix` first. It writes a missing
+`CLAUDE.md` bridge, the Compact Instructions section, and the rules block.
+The sections that need knowledge of the project stay with you.
+
 ## Bridge the Two Agents
 
 Codex reads `AGENTS.md`. Claude Code reads `CLAUDE.md` and ignores
@@ -123,27 +127,30 @@ python3 scripts/audit_tokens.py <repo> --fix-rules-block
 The command writes the block above the orientation heading. The text is
 composed for the repository, so no session pays for a rule it cannot use:
 
-- The package-manager hints name only the detected stacks.
+- The check line names the real entry point, and is left out until one exists.
+- The package-manager hints name only the lockfiles present.
 - The Playwright line appears only when a Playwright config exists.
 - The browser MCP line appears when a suite or a browser MCP config exists.
 
-When the repository gains a stack or a suite, the audit reports
-`RULES-EDITED`; run the command again. The full text, with every optional
-line, is:
+The managed-by note sits inside the begin marker. Claude Code strips block
+comments, so the note costs a Claude session nothing.
+
+When the repository gains an entry point, a lockfile, or a suite, the audit
+reports `RULES-EDITED`; run the command again. The full text, with every
+optional line, is:
 
 ```text
-<!-- BEGIN:tokenminator-rules v2 -->
+<!-- BEGIN:tokenminator-rules v3 | managed by the tokenminator skill; never edit by hand; refresh with its audit script and --fix-rules-block -->
 ## Token Discipline
 
-- Run checks through the project's single check entry point. Read its summary first, then only the failing check's log.
+- Run checks with `scripts/check`. Read its summary first, then only the failing check's log.
 - Read files in slices with offset and limit. Search first, then open the matching range.
-- Never open lockfiles, generated files, or anything under Do Not Read. Ask the package manager instead (`uv tree`, `bun pm ls`, `go list -m all`, `cargo tree`, `nix flake metadata`, `terraform providers`).
+- Never open lockfiles, generated files, or anything under Do Not Read. Ask the package manager instead (`uv tree`, `poetry show --tree`, `bun pm ls`, `npm ls`, `pnpm ls`, `yarn list`, `go list -m all`, `cargo tree`, `nix flake metadata`, `terraform providers`).
 - Prefer quiet and JSON flags over prose output. Send long output to a file and read only the part you need.
 - Hand wide searches to a subagent and keep only its conclusion.
-- Script anything done twice. Measure durations and log sizes before optimizing a check.
+- Ask git for the short form first: `git status --short`, `git diff --stat`, `git log --oneline`.
 - Test browsers with the scripted Playwright suite. Open one named screenshot only for a visual judgment.
 - Use a browser MCP only to explore an unscripted page once, then turn what you learned into a test.
-- Managed by the tokenminator skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block.
 <!-- END:tokenminator-rules -->
 ```
 
@@ -154,8 +161,11 @@ nothing. Repair the markers by hand, then run it again.
 
 An instruction file is paid for in every session by both agents.
 
-- Keep each file under 8,000 bytes. The managed rules block is not counted,
-  because it is not yours to trim.
+- The budget follows the repository: 1,200 bytes plus 40 per tracked file,
+  between 2,000 and 8,000. A small repository is cheap to re-explore.
+- The managed rules block is not counted, because it is not yours to trim.
+- The audit prints what the root files cost today under `measured today`.
+  When that passes the cost of re-exploring, it says so: trim them.
 - To trim, print the bytes under each heading and cut the largest sections
   first: `python3 scripts/audit_tokens.py <repo> --sections`.
 - Keep the root-to-leaf `AGENTS.md` chain under 32,768 bytes, or Codex stops
@@ -166,14 +176,11 @@ An instruction file is paid for in every session by both agents.
 ## Verify
 
 1. Re-run the audit and confirm the code cleared.
-2. Add a repository test that fails when a backticked path in the
-   orientation section does not exist.
-   - Cut the rules block out between its two markers. It sits above the
-     orientation heading, so dropping everything after the begin marker
-     leaves a test that passes on nothing.
-   - Skip the paths git ignores, with `git check-ignore -q`. A runtime
-     folder belongs in the table and is absent from a fresh clone.
-   - Assert that the test checked at least one path.
+2. Copy `assets/test_agents_md.py` to `scripts/test_agents_md.py`, unedited,
+   and add it to the project's checks. It fails when a backticked path in
+   `AGENTS.md` does not exist.
+   - It cuts the rules block out, and skips paths git ignores.
+   - It fails when it checked no path, so an empty table cannot pass.
 
 ## Hand to the User
 

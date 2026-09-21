@@ -1,6 +1,6 @@
 # Fixture
 
-<!-- BEGIN:tokenminator-rules v2 -->
+<!-- BEGIN:tokenminator-rules v3 -->
 ## Token Discipline
 
 - Run checks through the project's single check entry point. Read its summary first, then only the failing check's log.

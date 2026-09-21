@@ -15,9 +15,9 @@ description: >
 Make a repository cheap for coding agents to work in. Most token waste is
 configuration, so a script finds it and a playbook fixes it.
 
-One run fixes one area: audit, apply the playbook the audit names, verify,
-report. The user runs the skill again for the next area, until the audit
-says `next: none`.
+One run fixes what the `next:` line names: audit, apply that playbook, verify,
+report. That is one area, or every area at once when only low findings remain.
+The user runs the skill again until the audit says `next: none`.
 
 Paths below are relative to this skill's folder.
 
@@ -48,41 +48,40 @@ without spending tokens. Read the output in this order:
 
 | Line | Meaning |
 | --- | --- |
-| `next:` | The one area to fix in this run, and its playbook. `next: none` means this repository is done. |
+| `next:` | What to fix in this run, and its playbook or playbooks. `next: none` means this repository is done. |
 | `CODE severity path ...` | One finding, with `~before->~after tok/session` and its basis: `measured` from real file sizes, or `estimated` from the impact class. |
+| `measured today` | What the root instruction files cost in every session, and the log size of the last check run. |
 | `user scope` | Read only. What the config under the home folder costs in every session, in every repository. Each finding names its real owner and is `fixable here` or `proposal only`. |
 | `tokens per session` | Before and after per area, with a TOTAL row. |
 | `summary:` | Counts, detected stacks, the oldest tool fact. |
 
-Flags: `--format json` for a machine-readable result, `--user` for the user
-scope alone, `--no-user` to leave it out.
+| Flag | Use |
+| --- | --- |
+| `--fix` | Apply every fix that needs no judgement, then re-audit in brief. |
+| `--expect-cleared CODE...` | Re-audit in three lines: what cleared, what is open, what is next. |
+| `--brief` | The same three lines, with no codes to confirm. |
+| `--format json`, `--user`, `--no-user`, `--list-codes` | Machine output, user scope alone, no user scope, every code with its area. |
 
 The numbers rank areas against each other. They do not predict a bill.
 [references/principles.md](references/principles.md) gives the model.
 
 ## Step 3: Take the Area the Audit Names
 
-Load the playbook on the `next:` line, and only that one. Do not pick a
-different area: the script has already ranked by severity, put instruction
-files first, and put the check runner before the hooks that call it.
+Load the playbook or playbooks on the `next:` line, and nothing else. Do not
+pick a different area: the script has already ranked by severity, put
+instruction files first, and put the check runner before the hooks that call
+it. `--list-codes` maps any code to its area.
 
 When the saving on the `next:` line is `estimated`, tell the user before
 applying. An estimated area can be worth less than its number, and whether
 to spend a run on it is the user's call.
 
-| Codes | Area | Playbook |
-| --- | --- | --- |
-| `AGT-`, `CLD-`, `RULES-`, `ORIENT-`, `DNR-`, `PATH-`, `INS-` | Instruction files | [references/instruction-files.md](references/instruction-files.md) |
-| `SKILL-`, `DENY-`, `CFG-` | Context diet | [references/context-diet.md](references/context-diet.md) |
-| `RUN-`, `CI-` | Check runner | [references/check-runner.md](references/check-runner.md) |
-| `HOOK-` | Shared hooks | [references/hooks.md](references/hooks.md) |
-| `PW-`, `MCP-` | Scripted browser tests | [references/e2e.md](references/e2e.md) |
-| `TF-` | Infrastructure checks | [references/infrastructure.md](references/infrastructure.md) |
-| `USR-` | User scope | [references/user-scope.md](references/user-scope.md) |
-| `FACT-` | Tool facts | [references/claude-code.md](references/claude-code.md), [references/codex.md](references/codex.md) |
-
 ## Step 4: Apply
 
+- Run `--fix` first. It applies what needs no judgement, so you write only
+  what needs knowledge of the project.
+- Copy the templates under `assets/` where a playbook names one. Never
+  rewrite one by hand, and never edit a copy.
 - Reuse what the project has. Wrap its existing tools and entry point
   before adding new ones.
 - Everything must behave the same in Claude Code and Codex. Shared rules go
@@ -101,7 +100,8 @@ to spend a run on it is the user's call.
 1. Run the playbook's verify steps. A step only the user can do, such as
    starting a fresh session, goes into the report, not into this run.
 2. Run the project's own check entry point, if it has one.
-3. Audit again. The codes cleared and no new one appeared.
+3. Audit again with `--expect-cleared` and the codes you fixed. They cleared,
+   and the `open:` line shows no code that the first audit did not.
 4. Run `git status --short`. Every changed file is inside the repository
    and is one you meant to change.
 
@@ -141,10 +141,11 @@ its date. Never re-read all the documentation up front.
 
 - Never write outside the audited repository, by any tool, shell included.
   A `proposal only` finding is shown to the user and applied by the user.
-- The script's only write is the marked block in the root `AGENTS.md`, and
-  it refuses a target that resolves outside the repository. Run the script;
-  do not read it. [scripts/test_audit_tokens.py](scripts/test_audit_tokens.py)
-  is its self-test.
+- The script writes only under `--fix` and `--fix-rules-block`, and refuses
+  a target that resolves outside the repository. Run the script; do not read
+  it. Its self-tests are
+  [scripts/test_audit_tokens.py](scripts/test_audit_tokens.py) and
+  [scripts/test_assets.py](scripts/test_assets.py).
 - Never edit the rules block by hand, and never weaken an existing check,
   hook, or permission rule to save tokens.
 - Never rewrite vendored or third-party skill content. Move it, or delete it

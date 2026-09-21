@@ -36,7 +36,7 @@ HEAD_BYTES = 65536
 STREAM_CAP = 1_048_576
 HUMAN_CAP_PER_CODE = 5
 
-RULES_VERSION = 2
+RULES_VERSION = 3
 RULES_NAME = "tokenminator-rules"
 # This skill used to be called saving-private-tokens, and repositories audited under that
 # name still carry its markers and ignore file. The matchers accept both so a run upgrades
@@ -44,33 +44,42 @@ RULES_NAME = "tokenminator-rules"
 # written. Delete the LEGACY_* names once every audited repository has been refreshed.
 LEGACY_RULES_NAME = "saving-private-tokens-rules"
 LEGACY_IGNORE_FILE = ".agents/saving-private-tokens.json"
-RULES_BEGIN = f"<!-- BEGIN:{RULES_NAME} v{RULES_VERSION} -->"
+# The managed-by note rides inside the marker: Claude Code strips block comments, so it is
+# free there, and it costs Codex the same as a bullet would.
+RULES_NOTE = "managed by the tokenminator skill; never edit by hand; refresh with its audit script and --fix-rules-block"
+RULES_BEGIN = f"<!-- BEGIN:{RULES_NAME} v{RULES_VERSION} | {RULES_NOTE} -->"
 RULES_END = f"<!-- END:{RULES_NAME} -->"
 _RULES_NAMES = f"(?:{RULES_NAME}|{LEGACY_RULES_NAME})"
-RULES_BEGIN_RE = re.compile(rf"<!-- BEGIN:{_RULES_NAMES} v(\d+) -->")
+RULES_BEGIN_RE = re.compile(rf"<!-- BEGIN:{_RULES_NAMES} v(\d+)(?: \|[^>\n]*)? -->")
 RULES_END_RE = re.compile(rf"<!-- END:{_RULES_NAMES} -->")
 RULES_HEADING = "## Token Discipline"
 # The block is composed per repository, so a session never pays for a rule about a
-# stack or a browser suite the repository does not have. `{hint}` is filled from
-# STACK_HINTS; the browser lines appear only when their signal exists.
+# tool or a browser suite the repository does not have. `{hint}` is filled from
+# LOCKFILE_HINTS; the entry and browser lines appear only when their signal exists.
+RULES_ENTRY = "- Run checks with {entry}. Read its summary first, then only the failing check's log."
 RULES_HEAD = (
-    "- Run checks through the project's single check entry point. Read its summary first, then only the failing check's log.",
     "- Read files in slices with offset and limit. Search first, then open the matching range.",
     "- Never open lockfiles, generated files, or anything under Do Not Read.{hint}",
     "- Prefer quiet and JSON flags over prose output. Send long output to a file and read only the part you need.",
     "- Hand wide searches to a subagent and keep only its conclusion.",
-    "- Script anything done twice. Measure durations and log sizes before optimizing a check.",
 )
+RULES_GIT = "- Ask git for the short form first: `git status --short`, `git diff --stat`, `git log --oneline`."
 RULES_SUITE = "- Test browsers with the scripted Playwright suite. Open one named screenshot only for a visual judgment."
 RULES_MCP = "- Use a browser MCP only to explore an unscripted page once, then turn what you learned into a test."
-RULES_TAIL = "- Managed by the tokenminator skill. Do not edit by hand. Refresh with its audit script and --fix-rules-block."
-STACK_HINTS = {
-    "python": "`uv tree`",
-    "node": "`bun pm ls`",
-    "go": "`go list -m all`",
-    "rust": "`cargo tree`",
-    "nix": "`nix flake metadata`",
-    "terraform": "`terraform providers`",
+# A hint names the command that answers what the lockfile would. It is keyed on the lockfile,
+# not the stack, so a repository is never told to use a package manager it does not have.
+LOCKFILE_HINTS = {
+    "uv.lock": "`uv tree`",
+    "poetry.lock": "`poetry show --tree`",
+    "bun.lock": "`bun pm ls`",
+    "bun.lockb": "`bun pm ls`",
+    "package-lock.json": "`npm ls`",
+    "pnpm-lock.yaml": "`pnpm ls`",
+    "yarn.lock": "`yarn list`",
+    "go.sum": "`go list -m all`",
+    "Cargo.lock": "`cargo tree`",
+    "flake.lock": "`nix flake metadata`",
+    ".terraform.lock.hcl": "`terraform providers`",
 }
 PLAYWRIGHT_CONFIG_RE = re.compile(r"(.*/)?playwright\.config\.[cm]?[jt]s")
 
@@ -85,6 +94,7 @@ LIMITS = {
     "userskills": 12,  # skills at the user scope, paid for in every repository
     "userchars": 4000,  # description characters at the user scope
     "large": 40000,  # bytes before a data file needs a read deny
+    "source": 40000,  # bytes before a hand-written source file is worth an outline or a split
     "small": 2000,  # lockfiles and generated files below this cost too little to flag
     "bashcap": 10000,  # characters of Bash output Claude Code may return inline
     "toolcap": 2500,  # tokens of one tool output Codex may keep in history
@@ -115,6 +125,7 @@ CODES = {
     "DENY-DEAD": ("low", "D", "context-diet", "read deny matches nothing"),
     "DENY-SEARCH": ("low", "R/S", "context-diet", "costly file still shows up in searches"),
     "CFG-CAP": ("low", "L/S", "context-diet", "inline tool output has no tight cap"),
+    "SRC-LARGE": ("note", "R/XL", "context-diet", "hand-written source file is costly to open whole"),
     "MCP-BROWSER": ("med", "S+L", "e2e", "browser MCP configured beside a scripted suite"),
     "RUN-ENTRY": ("high", "L/L", "check-runner", "no single check entry point"),
     "RUN-UNDOC": ("med", "L", "check-runner", "check entry point is not named in AGENTS.md"),
@@ -137,6 +148,7 @@ CODES = {
     "USR-INS": ("med", "S", "user-scope", "user-level instruction file is over budget"),
     "USR-SKILL-BUDGET": ("med", "S/M", "user-scope", "too much skill listing at the user scope"),
     "USR-SKILL-DESC": ("low", "S", "user-scope", "user-level skill description is too long"),
+    "USR-MCP": ("low", "S/M", "user-scope", "user-level MCP server loads every tool into every Codex session"),
 }
 FAILING = {"high", "med", "low"}
 SEVERITY_ORDER = {"high": 0, "med": 1, "low": 2, "note": 3}
@@ -171,6 +183,31 @@ LAYER_SHARE = 0.5
 # capped at the XL band.
 ORIENT_FLOOR = 1500
 ORIENT_PER_FILE = 12
+# An instruction file is paid for in every session, so its budget follows the repository:
+# a small one is cheap to re-explore and earns a short file. `--limit ins=N` is the ceiling.
+INS_FLOOR = 2000
+INS_BASE = 1200
+INS_PER_FILE = 40
+# A missing entry point costs more the more tools a check loop has to rediscover.
+ENTRY_PER_SIGNAL = 1500
+# MCP cost before any call. Claude Code defers schemas and keeps the tool names; Codex
+# documents no deferral, so a server costs every enabled tool, or a typical server's worth.
+MCP_DEFERRED_TOKENS = 100
+MCP_TOOL_TOKENS = 150
+MCP_SERVER_TOKENS = 1500
+CHECK_SUMMARY = ".check/summary.json"
+OUTLINE_TOOL = "scripts/outline"
+READ_GUARD = "read_guard"
+
+
+def explore_cost(repo: "Repo") -> int:
+    """Tokens one session spends re-exploring a repository that has no orientation."""
+    return min(MAGNITUDE_TOKENS["XL"], ORIENT_FLOOR + ORIENT_PER_FILE * len(repo.files))
+
+
+def ins_budget(repo: "Repo", limits: dict[str, int]) -> int:
+    """Bytes one instruction file may spend, excluding the managed rules block."""
+    return min(limits["ins"], max(INS_FLOOR, INS_BASE + INS_PER_FILE * len(repo.files)))
 
 
 def estimate(impact: str) -> tuple[int, int]:
@@ -238,6 +275,18 @@ CI_GLOBS = [
 ]
 
 
+SOURCE_EXTENSIONS = {
+    ".py", ".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".go", ".rs", ".nix", ".tf", ".sh", ".rb",
+    ".java", ".kt", ".swift", ".c", ".cc", ".cpp", ".h", ".hpp", ".cs", ".php", ".scala", ".lua",
+}
+STACK_MARKERS = {"pyproject.toml", "requirements.txt", "setup.py", "package.json", "go.mod", "Cargo.toml", "flake.nix"}
+
+
+def _is_source(path: str) -> bool:
+    base = path.rsplit("/", 1)[-1]
+    return base in STACK_MARKERS or os.path.splitext(base)[1].lower() in SOURCE_EXTENSIONS
+
+
 class CannotRun(Exception):
     """The audit cannot produce a trustworthy result."""
 
@@ -277,11 +326,14 @@ class Repo:
         # A nested skill ships its own scripts and tests. They say nothing about the
         # project's stack or checks, so stack and check-signal detection skips them.
         # A SKILL.md at the root means the repository is the skill, and nothing is skipped.
+        # The same holds for a skill collection: with no source outside the skills, they are
+        # the project, and skipping them would hide its stack and its tests.
         skill_roots = tuple(
             value[: -len("SKILL.md")] for value in self.files
             if value.endswith("/SKILL.md")
         )
-        self.project_files = [value for value in self.files if not value.startswith(skill_roots)] if skill_roots else self.files
+        outside = [value for value in self.files if not value.startswith(skill_roots)] if skill_roots else self.files
+        self.project_files = outside if any(_is_source(value) for value in outside) else self.files
 
     def _git(self, arguments: list[str]) -> str:
         try:
@@ -338,14 +390,19 @@ class Repo:
     def ignored(self, relative: str) -> bool:
         if not self.is_git or not relative:
             return False
-        try:
-            done = subprocess.run(
-                ["git", "-C", self.root, "check-ignore", "-q", "--", relative],
-                capture_output=True, check=False,
-            )
-        except OSError:
-            return False
-        return done.returncode == 0
+        # A pattern such as `cache/` matches folders only, and git cannot tell that a missing
+        # path is a folder unless the path says so. Ask both ways.
+        for spelling in (relative, relative.rstrip("/") + "/"):
+            try:
+                done = subprocess.run(
+                    ["git", "-C", self.root, "check-ignore", "-q", "--", spelling],
+                    capture_output=True, check=False,
+                )
+            except OSError:
+                return False
+            if done.returncode == 0:
+                return True
+        return False
 
     def named(self, basename: str) -> list[str]:
         return [value for value in self.files if value.rsplit("/", 1)[-1] == basename]
@@ -369,12 +426,15 @@ class Audit:
         self.findings: list[Finding] = []
         self.oldest_fact: tuple[str, datetime.date] | None = None
         self.baseline: list[dict] = []  # user scope: what every session costs before any finding
+        self.instruction_cost: list[tuple[str, int]] = []  # root instruction files, measured tokens
+        self.deny_wanted: list[str] = []  # `Read(...)` rules that DENY-MISSING asks for
+        self.search_wanted: list[str] = []  # `.ignore` lines that DENY-SEARCH asks for
         self.instruction_files = [
             value for value in repo.files if value.rsplit("/", 1)[-1] == "AGENTS.md"
         ]
         self.root_agents = repo.head("AGENTS.md") if "AGENTS.md" in repo.fileset else ""
         self.candidates = self._costly_files()
-        self.entry = self._find_entry()
+        self.entry = find_entry(repo)
 
     def add(
         self, code: str, path: str, message: str, line: int = 0,
@@ -402,8 +462,13 @@ class Audit:
 
     def check_instructions(self) -> None:
         repo = self.repo
+        budget = ins_budget(repo, self.limits)
         if "AGENTS.md" not in repo.fileset:
-            self.add("AGT-MISSING", "AGENTS.md", "add a root AGENTS.md; it is the one file both agents can share")
+            # Priced as the exploring it replaces, against the budget the new file may spend.
+            self.add(
+                "AGT-MISSING", "AGENTS.md", "add a root AGENTS.md; it is the one file both agents can share",
+                before=explore_cost(repo), after=budget // 4, measured=False,
+            )
             if "CLAUDE.md" in repo.fileset:
                 self.add("CLD-IMPORT", "CLAUDE.md", "instructions live in a Claude-only file, so Codex reads none of them")
         for agents in self.instruction_files:
@@ -426,13 +491,15 @@ class Audit:
             if value.rsplit("/", 1)[-1] in ("AGENTS.md", "CLAUDE.md") and not os.path.islink(repo.abs(value)):
                 size = repo.size(value)
                 managed = _managed_bytes(repo.head(value))
-                if size - managed > self.limits["ins"]:
+                if "/" not in value:
+                    self.instruction_cost.append((value, size // 4))
+                if size - managed > budget:
                     note = f", {managed} of them the managed rules block, which is not counted" if managed else ""
                     self.add(
                         "INS-LONG", value,
-                        f"{size} bytes (~{size // 4} tokens every session){note}; budget is {self.limits['ins']}; "
-                        "run --sections to see where the bytes are",
-                        before=size // 4, after=(self.limits["ins"] + managed) // 4,
+                        f"{size} bytes (~{size // 4} tokens every session){note}; budget is {budget} "
+                        f"for a repository of {len(repo.files)} files; run --sections to see where the bytes are",
+                        before=size // 4, after=(budget + managed) // 4,
                     )
         self._check_claude_layer()
         self._check_chain()
@@ -512,7 +579,7 @@ class Audit:
 
     def _check_sections(self) -> None:
         if not ORIENT_RE.search(self.root_agents):
-            explore = min(MAGNITUDE_TOKENS["XL"], ORIENT_FLOOR + ORIENT_PER_FILE * len(self.repo.files))
+            explore = explore_cost(self.repo)
             self.add(
                 "ORIENT-MISSING", "AGENTS.md",
                 "add a short 'Where Things Live' section so sessions stop re-exploring the layout",
@@ -629,6 +696,7 @@ class Audit:
             size = repo.size(path)
             rule = f"Read(/{path})" if reason == "large data file" else f"Read(**/{key})"
             count = f"{len(group)} files, largest " if len(group) > 1 else ""
+            self.deny_wanted.append(rule)
             self.add(
                 "DENY-MISSING", path,
                 f"{reason}: {count}{size // 1024} KB (~{size // 4} tokens per read); add `{rule}`",
@@ -647,6 +715,7 @@ class Audit:
             self.add("DENY-DEAD", ".claude/settings.json", f"`Read({pattern})` matches nothing")
         self._check_search_ignore()
         self._check_output_caps()
+        self._check_large_source()
         self._check_skills()
 
     def _check_search_ignore(self) -> None:
@@ -662,10 +731,30 @@ class Audit:
             line = f"/{path}" if reason == "large data file" else path.rsplit("/", 1)[-1]
             if line not in wanted:
                 wanted.append(line)
+        self.search_wanted = wanted
         if wanted:
             shown = ", ".join(f"`{line}`" for line in wanted[:HUMAN_CAP_PER_CODE])
             more = f" and {len(wanted) - HUMAN_CAP_PER_CODE} more" if len(wanted) > HUMAN_CAP_PER_CODE else ""
             self.add("DENY-SEARCH", SEARCH_IGNORE, f"add {shown}{more}; a read deny does not keep a file out of search results")
+
+    def _check_large_source(self) -> None:
+        """Source cannot be denied, because agents must edit it. It can be made cheap to navigate."""
+        if OUTLINE_TOOL in self.repo.fileset and OUTLINE_TOOL in self.root_agents:
+            return
+        costly = {path for path, _reason in self.candidates}
+        for value in self.repo.files:
+            if value in costly or os.path.islink(self.repo.abs(value)):
+                continue
+            if os.path.splitext(value)[1].lower() not in SOURCE_EXTENSIONS:
+                continue
+            size = self.repo.size(value)
+            if size > self.limits["source"]:
+                self.add(
+                    "SRC-LARGE", value,
+                    f"{size // 1024} KB (~{size // 4} tokens to open whole); split it by responsibility, or ship "
+                    f"`{OUTLINE_TOOL}` and name it in AGENTS.md so agents outline it and read one range",
+                    before=size // 4,
+                )
 
     def _check_output_caps(self) -> None:
         """One finding per agent. A session runs one agent, so each carries half the estimate."""
@@ -743,41 +832,6 @@ class Audit:
 
     # ---------------------------------------------------------------- check runner
 
-    def _find_entry(self) -> tuple[str, list[str]] | None:
-        """Return (file, ways an instruction file might name it)."""
-        repo = self.repo
-        for folder in ("scripts", "bin"):
-            for name in ENTRY_NAMES:
-                for suffix in ("", ".sh", ".py"):
-                    path = f"{folder}/{name}{suffix}"
-                    if path in repo.fileset:
-                        return path, [path]
-        for makefile, tool in (("Makefile", "make"), ("justfile", "just"), ("Justfile", "just")):
-            if makefile in repo.fileset:
-                match = re.search(rf"(?m)^({'|'.join(ENTRY_TARGETS)})\s*:", repo.head(makefile))
-                if match:
-                    return makefile, [f"{tool} {match.group(1)}"]
-        for taskfile in ("Taskfile.yml", "Taskfile.yaml"):
-            if taskfile in repo.fileset:
-                match = re.search(rf"(?m)^\s{{2}}({'|'.join(ENTRY_TARGETS)})\s*:", repo.head(taskfile))
-                if match:
-                    return taskfile, [f"task {match.group(1)}"]
-        package, _ = repo.load_json("package.json")
-        if isinstance(package, dict) and isinstance(package.get("scripts"), dict):
-            for target in ENTRY_TARGETS:
-                if target in package["scripts"]:
-                    return "package.json", [f"run {target}", f"npm {target}", f"bun {target}", f"pnpm {target}", f"yarn {target}"]
-        if "mise.toml" in repo.fileset:
-            match = re.search(rf"(?m)^\[tasks\.({'|'.join(ENTRY_TARGETS)})\]", repo.head("mise.toml"))
-            if match:
-                return "mise.toml", [f"mise run {match.group(1)}"]
-        for config, tool in (("noxfile.py", "nox"), ("tox.ini", "tox")):
-            if config in repo.fileset:
-                return config, [tool]
-        if "flake.nix" in repo.fileset and re.search(r"\bchecks\b", repo.head("flake.nix")):
-            return "flake.nix", ["nix flake check"]
-        return None
-
     def _entry_text(self) -> str:
         assert self.entry is not None
         path = self.entry[0]
@@ -793,7 +847,12 @@ class Audit:
         if self.entry is None:
             signals = _check_signals(repo)
             if signals:
-                self.add("RUN-ENTRY", ".", f"found {', '.join(signals)} but no scripts/check, make check, package `check` script, or flake `checks`; agents re-derive the commands every session")
+                per_loop = min(MAGNITUDE_TOKENS["L"], ENTRY_PER_SIGNAL * len(signals))
+                self.add(
+                    "RUN-ENTRY", ".",
+                    f"found {', '.join(signals)} but no scripts/check, make check, package `check` script, or flake `checks`; agents re-derive the commands every session",
+                    before=per_loop * CADENCE_PER_SESSION["L"], measured=False,
+                )
                 if len(signals) < 2:
                     self.findings[-1].severity = "med"
             return
@@ -839,6 +898,13 @@ class Audit:
                         codex = tomllib.loads(raw).get("hooks")
                     except tomllib.TOMLDecodeError:
                         codex = None
+        # The read guard is a Claude-only extra layer: Codex has no Read tool to guard, so it
+        # is set aside before the two hook blocks are compared.
+        if isinstance(claude, dict):
+            claude = {
+                event: kept for event, entries in claude.items()
+                if (kept := [e for e in entries if READ_GUARD not in json.dumps(e)] if isinstance(entries, list) else entries)
+            }
         if bool(claude) != bool(codex):
             present, absent = ("Claude Code", "Codex") if claude else ("Codex", "Claude Code")
             self.add("HOOK-ONE", ".claude/settings.json" if claude else codex_path, f"{present} has hooks and {absent} has none")
@@ -1046,12 +1112,29 @@ class Audit:
                     or sum(1 for skill in skills if skill["fixable"]) > self.limits["userskills"]
                 ),
             )
-        servers = _user_mcp_servers(home)
-        if servers:
+        claude, codex = _user_mcp_servers(home)
+        if claude:
+            # Claude Code defers tool schemas, so an idle server costs its tool names only.
             self.baseline.append({
-                "what": f"{len(servers)} MCP server(s): {', '.join(servers)}", "owner": "",
-                "tokens": len(servers) * MAGNITUDE_TOKENS["S"], "basis": "estimated",
+                "what": f"Claude Code: {len(claude)} MCP server(s), schemas deferred: {', '.join(claude)}", "owner": "",
+                "tokens": len(claude) * MCP_DEFERRED_TOKENS, "basis": "estimated", "agent": "claude",
             })
+        if codex:
+            tokens = sum(MCP_TOOL_TOKENS * tools if tools else MCP_SERVER_TOKENS for tools in codex.values())
+            self.baseline.append({
+                "what": f"Codex: {len(codex)} MCP server(s), every enabled tool loads: {', '.join(codex)}", "owner": "",
+                "tokens": tokens, "basis": "estimated", "agent": "codex",
+            })
+            unlisted = sorted(name for name, tools in codex.items() if not tools)
+            if unlisted:
+                owner, fixable = self._ownership(os.path.join(home, USER_MCP_TOML))
+                self.add(
+                    "USR-MCP", "~/" + USER_MCP_TOML,
+                    f"{', '.join(unlisted)}: no `enabled_tools`, so every tool schema loads in every Codex session; "
+                    "list only the tools in use, or move the server into the project that needs it",
+                    before=len(unlisted) * MCP_SERVER_TOKENS, after=len(unlisted) * MCP_TOOL_TOKENS * 3,
+                    measured=False, owner=owner, fixable=fixable,
+                )
 
     def run(self, scopes: tuple[str, ...] = ("repo",), home: str = "") -> None:
         if "repo" in scopes:
@@ -1069,26 +1152,86 @@ class Audit:
 # -------------------------------------------------------------------- helpers
 
 
+def baseline_total(rows: list[dict]) -> int:
+    """A session runs one agent: shared rows count once, and only the costlier agent's own rows."""
+    shared = sum(row["tokens"] for row in rows if not row.get("agent"))
+    per_agent: dict[str, int] = {}
+    for row in rows:
+        if row.get("agent"):
+            per_agent[row["agent"]] = per_agent.get(row["agent"], 0) + row["tokens"]
+    return shared + max(per_agent.values(), default=0)
+
+
 def _tilde(path: str) -> str:
     home = os.path.expanduser("~")
     return "~" + path[len(home):] if path == home or path.startswith(home + os.sep) else path
 
 
-def _user_mcp_servers(home: str) -> list[str]:
-    """Names of MCP servers configured for every repository. Names only; values may hold secrets."""
-    names: list[str] = []
+def _user_mcp_servers(home: str) -> tuple[list[str], dict[str, int]]:
+    """MCP servers configured for every repository: Claude Code's names, and Codex's names
+    with how many tools each enables (0 when `enabled_tools` is unset). Names and counts
+    only; the values may hold secrets."""
+    claude: list[str] = []
     try:
         with open(os.path.join(home, USER_MCP_JSON), encoding="utf-8") as source:
             servers = json.load(source).get("mcpServers", {})
-        names += sorted(servers) if isinstance(servers, dict) else []
+        claude = sorted(servers) if isinstance(servers, dict) else []
     except (OSError, ValueError, AttributeError):
         pass
+    codex: dict[str, int] = {}
     try:
         with open(os.path.join(home, USER_MCP_TOML), encoding="utf-8") as source:
-            names += re.findall(r"(?m)^\[mcp_servers\.([^\].]+)\]", source.read())
+            text = source.read()
+        for match in re.finditer(r"(?m)^\[mcp_servers\.([^\].]+)\]\s*$", text):
+            following = re.search(r"(?m)^\[", text[match.end():])
+            table = text[match.end(): match.end() + following.start()] if following else text[match.end():]
+            enabled = re.search(r"(?ms)^enabled_tools\s*=\s*\[(.*?)\]", table)
+            codex[match.group(1)] = len(re.findall(r"[\"'][^\"']+[\"']", enabled.group(1))) if enabled else 0
     except OSError:
         pass
-    return sorted(set(names))
+    return claude, codex
+
+
+def find_entry(repo: Repo) -> tuple[str, list[str]] | None:
+    """Return (file, ways an instruction file might name it)."""
+    for folder in ("scripts", "bin"):
+        for name in ENTRY_NAMES:
+            for suffix in ("", ".sh", ".py"):
+                path = f"{folder}/{name}{suffix}"
+                if path in repo.fileset:
+                    return path, [path]
+    for makefile, tool in (("Makefile", "make"), ("justfile", "just"), ("Justfile", "just")):
+        if makefile in repo.fileset:
+            match = re.search(rf"(?m)^({'|'.join(ENTRY_TARGETS)})\s*:", repo.head(makefile))
+            if match:
+                return makefile, [f"{tool} {match.group(1)}"]
+    for taskfile in ("Taskfile.yml", "Taskfile.yaml"):
+        if taskfile in repo.fileset:
+            match = re.search(rf"(?m)^\s{{2}}({'|'.join(ENTRY_TARGETS)})\s*:", repo.head(taskfile))
+            if match:
+                return taskfile, [f"task {match.group(1)}"]
+    package, _ = repo.load_json("package.json")
+    if isinstance(package, dict) and isinstance(package.get("scripts"), dict):
+        for target in ENTRY_TARGETS:
+            if target in package["scripts"]:
+                return "package.json", [f"run {target}", f"npm {target}", f"bun {target}", f"pnpm {target}", f"yarn {target}"]
+    if "mise.toml" in repo.fileset:
+        match = re.search(rf"(?m)^\[tasks\.({'|'.join(ENTRY_TARGETS)})\]", repo.head("mise.toml"))
+        if match:
+            return "mise.toml", [f"mise run {match.group(1)}"]
+    for config, tool in (("noxfile.py", "nox"), ("tox.ini", "tox")):
+        if config in repo.fileset:
+            return config, [tool]
+    if "flake.nix" in repo.fileset and re.search(r"\bchecks\b", repo.head("flake.nix")):
+        return "flake.nix", ["nix flake check"]
+    return None
+
+
+def entry_display(path: str, mentions: list[str]) -> str:
+    """How an instruction names the entry point: the command an agent would type."""
+    if path == "package.json":
+        return f"the package `{mentions[0].split()[-1]}` script"
+    return f"`{mentions[0]}`"
 
 
 def _stacks(repo: Repo) -> list[str]:
@@ -1247,19 +1390,24 @@ def _browser_mcp_files(repo: Repo) -> list[str]:
 def rules_body(repo: Repo | None) -> str:
     """The managed text for one repository; `None` gives the full text with every line."""
     if repo is None:
-        stacks, suite, mcp = list(STACK_HINTS), True, True
+        hints, entry, suite, mcp = list(dict.fromkeys(LOCKFILE_HINTS.values())), "`scripts/check`", True, True
     else:
-        stacks = _stacks(repo)
+        # `files`, not `all_files`: a lockfile inside a test fixture is not the project's.
+        names = {value.rsplit("/", 1)[-1] for value in repo.files}
+        hints = list(dict.fromkeys(hint for lockfile, hint in LOCKFILE_HINTS.items() if lockfile in names))
+        found = find_entry(repo)
+        entry = entry_display(*found) if found else ""
         suite = any(PLAYWRIGHT_CONFIG_RE.fullmatch(value) for value in repo.files)
         mcp = suite or bool(_browser_mcp_files(repo))
-    hints = [STACK_HINTS[name] for name in STACK_HINTS if name in stacks]
     hint = f" Ask the package manager instead ({', '.join(hints)})." if hints else ""
-    lines = [line.format(hint=hint) for line in RULES_HEAD]
+    # No entry point, no entry line: a rule that names nothing sends the agent searching.
+    lines = [RULES_ENTRY.format(entry=entry)] if entry else []
+    lines += [line.format(hint=hint) for line in RULES_HEAD]
+    lines.append(RULES_GIT)
     if suite:
         lines.append(RULES_SUITE)
     if mcp:
         lines.append(RULES_MCP)
-    lines.append(RULES_TAIL)
     return RULES_HEADING + "\n\n" + "\n".join(lines)
 
 
@@ -1267,16 +1415,133 @@ def rules_block(repo: Repo | None) -> str:
     return f"{RULES_BEGIN}\n{rules_body(repo)}\n{RULES_END}\n"
 
 
-def fix_rules_block(repo: Repo) -> str:
-    path = os.path.join(repo.root, "AGENTS.md")
-    if not os.path.isfile(path):
-        raise CannotRun("no root AGENTS.md to hold the rules block; create it first")
-    # This is the script's only write. Follow a link so the link survives, and refuse
-    # a target outside the audited repository: that file belongs to someone else.
-    path = os.path.realpath(path)
+COMPACT_SECTION = (
+    "## Compact Instructions\n\n"
+    "Keep the plan, the files changed, the failing check ids, and the user's decisions.\n"
+)
+
+
+def guarded(repo: Repo, relative: str) -> str:
+    """The real path of a file this script may write. Every write goes through here.
+
+    Follow a link so the link survives, and refuse a target outside the audited
+    repository: that file belongs to someone else.
+    """
+    path = os.path.realpath(os.path.join(repo.root, relative))
     root = os.path.realpath(repo.root)
     if not path.startswith(root + os.sep):
-        raise CannotRun(f"AGENTS.md resolves outside the repository ({_tilde(path)}); nothing was written")
+        raise CannotRun(f"{relative} resolves outside the repository ({_tilde(path)}); nothing was written")
+    return path
+
+
+def _replace_file(path: str, text: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temporary = path + ".tmp-tokenminator"
+    with open(temporary, "w", encoding="utf-8", newline="") as target:
+        target.write(text)
+    os.replace(temporary, path)
+
+
+def _read(path: str) -> str:
+    try:
+        with open(path, encoding="utf-8") as source:
+            return source.read()
+    except OSError:
+        return ""
+
+
+def fix_mechanical(repo: Repo, audit: "Audit", findings: list[Finding], limits: dict[str, int]) -> list[str]:
+    """Apply the fixes that need no judgement. Returns one line per file changed or skipped."""
+    done: list[str] = []
+    open_codes = {(finding.code, finding.path) for finding in findings}
+    codes = {code for code, _path in open_codes}
+
+    def attempt(relative: str, change) -> None:
+        try:
+            path = guarded(repo, relative)
+            message = change(path)
+            if message:
+                done.append(f"fixed {relative}: {message}")
+        except CannotRun as error:
+            done.append(f"skipped {relative}: {error}")
+
+    def settings(path: str) -> str:
+        text = _read(path)
+        try:
+            data = json.loads(text) if text.strip() else {}
+        except ValueError:
+            raise CannotRun("invalid JSON; repair it by hand first")
+        if not isinstance(data, dict):
+            raise CannotRun("not a JSON object; repair it by hand first")
+        changes = []
+        if ("CFG-CAP", ".claude/settings.json") in open_codes:
+            data["bashOutputMaxChars"] = limits["bashcap"]
+            changes.append(f"bashOutputMaxChars = {limits['bashcap']}")
+        if "DENY-MISSING" in codes and audit.deny_wanted:
+            deny = data.setdefault("permissions", {}).setdefault("deny", [])
+            added = [rule for rule in audit.deny_wanted if rule not in deny]
+            deny.extend(added)
+            changes.append(f"{len(added)} read deny rule(s)")
+        if changes:
+            _replace_file(path, json.dumps(data, indent=2) + "\n")
+        return ", ".join(changes)
+
+    def codex(path: str) -> str:
+        text = _read(path)
+        line = f"tool_output_token_limit = {limits['toolcap']}"
+        table = re.search(r"(?m)^\[", text)
+        head, tables = (text[: table.start()], text[table.start() :]) if table else (text, "")
+        if CODEX_CAP_RE.search(head):
+            head = CODEX_CAP_RE.sub(line, head, count=1)
+        else:
+            # A key below a table header belongs to that table, so the cap goes above them all.
+            head = line + "\n" + head.lstrip("\n")
+            if tables and not head.endswith("\n\n"):
+                head += "\n"
+        _replace_file(path, head + tables)
+        return line
+
+    def bridge(path: str) -> str:
+        if os.path.lexists(path):
+            raise CannotRun("exists without an `@AGENTS.md` line; merge it by hand, it may carry its own rules")
+        _replace_file(path, "@AGENTS.md\n\n" + COMPACT_SECTION)
+        return "imports AGENTS.md and tells compaction what to keep"
+
+    def compact(path: str) -> str:
+        _replace_file(path, _read(path).rstrip("\n") + "\n\n" + COMPACT_SECTION)
+        return "added Compact Instructions"
+
+    def search_ignore(path: str) -> str:
+        text = _read(path)
+        lines = "".join(f"{line}\n" for line in audit.search_wanted)
+        _replace_file(path, (text if not text or text.endswith("\n") else text + "\n") + lines)
+        return f"{len(audit.search_wanted)} pattern(s)"
+
+    if ("CFG-CAP", ".claude/settings.json") in open_codes or ("DENY-MISSING" in codes and audit.deny_wanted):
+        attempt(".claude/settings.json", settings)
+    if ("CFG-CAP", ".codex/config.toml") in open_codes:
+        attempt(".codex/config.toml", codex)
+    for code, relative in sorted(open_codes):
+        if code == "CLD-IMPORT" and relative.endswith("CLAUDE.md") and (relative[: -len("CLAUDE.md")] + "AGENTS.md") in repo.fileset:
+            attempt(relative, bridge)
+    if ("CLD-COMPACT", "CLAUDE.md") in open_codes:
+        attempt("CLAUDE.md", compact)
+    if "DENY-SEARCH" in codes and audit.search_wanted:
+        attempt(SEARCH_IGNORE, search_ignore)
+    if codes & {"RULES-MISSING", "RULES-OUTDATED", "RULES-EDITED"} or (done and "AGENTS.md" in repo.fileset):
+        try:
+            state = fix_rules_block(repo)
+            if state == "updated":
+                done.append(f"fixed AGENTS.md: rules block v{RULES_VERSION}")
+        except CannotRun as error:
+            done.append(f"skipped AGENTS.md: {error}")
+    return done
+
+
+def fix_rules_block(repo: Repo) -> str:
+    if not os.path.isfile(os.path.join(repo.root, "AGENTS.md")):
+        raise CannotRun("no root AGENTS.md to hold the rules block; create it first")
+    path = guarded(repo, "AGENTS.md")
     with open(path, encoding="utf-8", newline="") as source:
         original = source.read()
     newline = "\r\n" if "\r\n" in original else "\n"
@@ -1297,10 +1562,7 @@ def fix_rules_block(repo: Repo) -> str:
     updated = updated.replace("\n", newline) if newline != "\n" else updated
     if updated == original:
         return "unchanged"
-    temporary = path + ".tmp-rules"
-    with open(temporary, "w", encoding="utf-8", newline="") as target:
-        target.write(updated)
-    os.replace(temporary, path)
+    _replace_file(path, updated)
     return "updated"
 
 
@@ -1338,7 +1600,7 @@ def is_ignored(finding: Finding, ignores: dict[str, str]) -> bool:
 
 
 RULES_SPAN_RE = re.compile(
-    rf"<!-- BEGIN:{_RULES_NAMES} v\d+ -->.*?{RULES_END_RE.pattern}\n?", re.S
+    RULES_BEGIN_RE.pattern + rf".*?{RULES_END_RE.pattern}\n?", re.S
 )
 HEADING_RE = re.compile(r"^#{1,3} ")
 
@@ -1413,15 +1675,49 @@ def next_area(findings: list[Finding]) -> dict | None:
             area["codes"].append(finding.code)
     if not areas:
         return None
-    name = min(areas, key=lambda key: (areas[key]["rank"], key != "instruction-files", -areas[key]["saved"]))
+    order = sorted(areas, key=lambda key: (areas[key]["rank"], key != "instruction-files", -areas[key]["saved"]))
+    name = order[0]
     if name == "hooks" and "check-runner" in areas:
         name = "check-runner"
-    basis = areas[name]["basis"]
+    # Once only low findings remain, one run takes every area: a run of the skill costs
+    # more than a low area saves, so spending one run per area would be a net loss.
+    batch = order if areas[name]["rank"] >= SEVERITY_ORDER["low"] and len(order) > 1 else [name]
+    basis = set().union(*(areas[key]["basis"] for key in batch))
     return {
-        "area": name, "playbook": f"references/{name}.md", "codes": areas[name]["codes"],
-        "saved": areas[name]["saved"],
+        "area": name, "playbook": f"references/{name}.md",
+        "areas": batch, "playbooks": [f"references/{key}.md" for key in batch],
+        "codes": [code for key in batch for code in areas[key]["codes"]],
+        "saved": sum(areas[key]["saved"] for key in batch),
         "basis": "mixed" if len(basis) > 1 else "measured" if True in basis else "estimated",
     }
+
+
+def next_line(findings: list[Finding]) -> str:
+    step = next_area(findings)
+    if not step:
+        proposals = sum(1 for f in findings if f.severity in FAILING and not f.fixable)
+        return "next: none; nothing left that this repository can fix" + (f" ({proposals} proposal(s) for the user)" if proposals else "")
+    batched = "; only low findings remain, so fix every area in this run" if len(step["areas"]) > 1 else ""
+    return (
+        f"next: {' + '.join(step['areas'])} ({', '.join(step['codes'])}; saves ~{step['saved']} tok/session "
+        f"{step['basis']}{batched}) -> {', '.join(step['playbooks'])}"
+    )
+
+
+def render_brief(findings: list[Finding], expected: list[str]) -> str:
+    """A re-audit in a few lines: what cleared, what is open, what comes next."""
+    counts: dict[str, int] = {}
+    for finding in findings:
+        if finding.severity in FAILING and finding.fixable:
+            counts[finding.code] = counts.get(finding.code, 0) + 1
+    lines = []
+    if expected:
+        stuck = [code for code in expected if code in counts]
+        lines.append(f"cleared: {', '.join(code for code in expected if code not in counts) or 'none'}" + (f" | NOT cleared: {', '.join(stuck)}" if stuck else ""))
+    severity = {finding.code: finding.severity for finding in findings}
+    lines.append("open: " + (", ".join(f"{code}{f' x{n}' if n > 1 else ''} {severity[code]}" for code, n in counts.items()) or "none"))
+    lines.append(next_line(findings))
+    return "\n".join(lines)
 
 
 def _finding_lines(findings: list[Finding]) -> list[str]:
@@ -1447,8 +1743,30 @@ def _finding_lines(findings: list[Finding]) -> list[str]:
     return lines
 
 
+def measured_lines(audit: Audit) -> tuple[list[str], dict]:
+    """What this repository costs today, from real sizes: instruction files and the last check run."""
+    lines, data = [], {}
+    if audit.instruction_cost:
+        tokens = sum(cost for _name, cost in audit.instruction_cost)
+        explore = explore_cost(audit.repo)
+        names = ", ".join(name for name, _cost in audit.instruction_cost)
+        worse = f"; more than the ~{explore} that re-exploring would cost, so trim them" if tokens > explore else ""
+        lines.append(f"  instruction files {tokens:>6} tok/session measured  {names}{worse}")
+        data["instructionFiles"] = {"tokens": tokens, "exploreTokens": explore, "files": [name for name, _ in audit.instruction_cost]}
+    try:
+        with open(audit.repo.abs(CHECK_SUMMARY), encoding="utf-8") as source:
+            checks = json.load(source).get("checks", [])
+        size = sum(int(check.get("logBytes", 0)) for check in checks if isinstance(check, dict))
+        lines.append(f"  last check run    {size // 4:>6} tok of logs     measured  {CHECK_SUMMARY}, {len(checks)} check(s); an agent reads only a failing one")
+        data["lastCheckRun"] = {"logTokens": size // 4, "checks": len(checks)}
+    except (OSError, ValueError, AttributeError, TypeError):
+        pass
+    return (["measured today:"] + lines if lines else []), data
+
+
 def render_human(findings: list[Finding], ignored: int, audit: Audit, stacks: list[str]) -> str:
     lines = _finding_lines([finding for finding in findings if finding.scope == "repo"])
+    lines += measured_lines(audit)[0]
     personal = [finding for finding in findings if finding.scope == "user"]
     if personal or audit.baseline:
         lines.append("user scope (read only; paid in every session, in every repository):")
@@ -1456,8 +1774,7 @@ def render_human(findings: list[Finding], ignored: int, audit: Audit, stacks: li
         for row in audit.baseline:
             owner = f"  [{row['owner']}]" if row["owner"] else ""
             lines.append(f"  baseline {row['tokens']:>7} tok/session {row['basis']:<9} {row['what']}{owner}")
-        total = sum(row["tokens"] for row in audit.baseline)
-        lines.append(f"  baseline {total:>7} tok/session total")
+        lines.append(f"  baseline {baseline_total(audit.baseline):>7} tok/session total, for the costlier agent")
     rows = rollup(findings)
     if rows:
         width = max(len(area) for area, *_ in rows + [("TOTAL", 0, 0, "")])
@@ -1475,18 +1792,7 @@ def render_human(findings: list[Finding], ignored: int, audit: Audit, stacks: li
     if audit.oldest_fact:
         name, stamp = audit.oldest_fact
         fact = f"{name} {stamp.isoformat()} ({(audit.today - stamp).days}d)"
-    proposals = sum(1 for f in findings if f.severity in FAILING and not f.fixable)
-    step = next_area(findings)
-    if step:
-        lines.append(
-            f"next: {step['area']} ({', '.join(step['codes'])}; saves ~{step['saved']} tok/session "
-            f"{step['basis']}) -> {step['playbook']}"
-        )
-    else:
-        lines.append(
-            "next: none; nothing left that this repository can fix"
-            + (f" ({proposals} proposal(s) for the user)" if proposals else "")
-        )
+    lines.append(next_line(findings))
     lines.append(
         f"summary: {len(findings)} finding(s): {counts['high']} high, {counts['med']} med, "
         f"{counts['low']} low, {counts['note']} note, {ignored} ignored, "
@@ -1513,6 +1819,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--format", choices=("human", "json"), default="human")
     parser.add_argument("--fix-rules-block", action="store_true")
     parser.add_argument(
+        "--fix", action="store_true",
+        help="apply every fix that needs no judgement (output caps, the CLAUDE.md bridge and compaction "
+             "note, read denies, search ignores, the rules block), then re-audit in brief",
+    )
+    parser.add_argument(
         "--print-rules-block", nargs="?", const="repo", choices=("repo", "full"),
         help="print the managed block composed for ROOT, or `full` for every optional line",
     )
@@ -1523,6 +1834,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--list-codes", action="store_true")
     parser.add_argument("--user", action="store_true", help="audit only the user scope (read only)")
     parser.add_argument("--no-user", action="store_true", help="skip the user scope")
+    parser.add_argument("--brief", action="store_true", help="re-audit in three lines: open codes and the next area; skips the user scope")
+    parser.add_argument("--expect-cleared", nargs="+", default=[], metavar="CODE", help="with --brief, say which of these codes cleared")
     parser.add_argument("--limit", action="append", default=[])
     parser.add_argument("--ignore", action="append", default=[])
     parser.add_argument("--today")
@@ -1543,21 +1856,34 @@ def main(argv: list[str] | None = None) -> int:
         unknown = [code for code in args.ignore if code.split(":", 1)[0] not in CODES]
         if unknown:
             raise CannotRun(f"unknown code(s) for --ignore: {', '.join(unknown)}")
-        if args.user and (args.fix_rules_block or args.no_user):
-            raise CannotRun("--user only reads; it cannot be combined with --fix-rules-block or --no-user")
+        if args.user and (args.fix_rules_block or args.fix or args.no_user):
+            raise CannotRun("--user only reads; it cannot be combined with --fix, --fix-rules-block or --no-user")
         repo = Repo(root)
         if args.print_rules_block:
             sys.stdout.write(rules_block(repo))
             return 0
         if args.sections:
-            print(render_sections(repo, args.sections, limits["ins"]))
+            print(render_sections(repo, args.sections, ins_budget(repo, limits)))
             return 0
         if args.fix_rules_block:
             print(f"rules block v{RULES_VERSION}: {fix_rules_block(repo)}")
         ignores = load_ignores(repo, args.ignore)
         audit = Audit(repo, limits, args.facts, today)
-        scopes = ("user",) if args.user else ("repo",) if args.no_user else ("repo", "user")
+        unknown = [code for code in args.expect_cleared if code not in CODES]
+        if unknown:
+            raise CannotRun(f"unknown code(s) for --expect-cleared: {', '.join(unknown)}")
+        if args.expect_cleared:
+            args.brief = True
+        scopes = ("user",) if args.user else ("repo",) if args.no_user or args.brief else ("repo", "user")
         audit.run(scopes, os.path.expanduser("~"))
+        if args.fix:
+            open_now = [finding for finding in audit.findings if not is_ignored(finding, ignores)]
+            for line in fix_mechanical(repo, audit, open_now, limits) or ["fixed nothing: no open finding has a mechanical fix"]:
+                print(line)
+            repo = Repo(root)
+            audit = Audit(repo, limits, args.facts, today)
+            audit.run(("repo",), "")
+            args.brief = True
     except (CannotRun, ValueError) as error:
         print(f"audit_tokens: {error}", file=sys.stderr)
         return 2
@@ -1569,7 +1895,9 @@ def main(argv: list[str] | None = None) -> int:
     # or no project could reach a clean exit.
     failing = any(finding.severity in FAILING and finding.fixable for finding in kept)
     stacks = _stacks(repo)
-    if args.format == "json":
+    if args.brief:
+        print(render_brief(kept, args.expect_cleared))
+    elif args.format == "json":
         fact = audit.oldest_fact
         print(json.dumps({
             "schemaVersion": 1,
@@ -1583,9 +1911,10 @@ def main(argv: list[str] | None = None) -> int:
             "userScope": {
                 "home": _tilde(os.path.expanduser("~")),
                 "baseline": audit.baseline,
-                "baselineTokens": sum(row["tokens"] for row in audit.baseline),
+                "baselineTokens": baseline_total(audit.baseline),
             },
             "next": next_area(kept),
+            "measured": measured_lines(audit)[1],
             "estimates": {
                 "unit": "tokens per session",
                 "byArea": [

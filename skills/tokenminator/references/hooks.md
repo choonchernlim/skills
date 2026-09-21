@@ -16,6 +16,7 @@ short result, and both agents behave the same way.
 - [The Two Hooks](#the-two-hooks)
 - [Wire Both Agents](#wire-both-agents)
 - [Rules for the Script](#rules-for-the-script)
+- [Guard Large Reads](#guard-large-reads)
 - [Verify](#verify)
 
 ## Codes This Fixes
@@ -70,6 +71,29 @@ Codex runs project hooks only after the project is trusted.
   Do not print the log.
 - **Test the pairing.** A repository test loads both files and asserts the
   `hooks` objects are equal.
+- **Leave a shipped runner alone.** When `scripts/check` is the copied
+  template, put the hook logic in its own script under `scripts/` and have it
+  call `scripts/check --impacted`.
+
+## Guard Large Reads
+
+The rules block asks agents to read files in slices. In Claude Code a hook
+makes that a setting. It is a Claude-only extra layer: Codex has no Read tool
+to guard, and the audit leaves this hook out when it compares the two agents.
+
+1. Copy `assets/read_guard.py` to `scripts/read_guard.py`. Never edit the copy.
+2. Copy `assets/outline` to `scripts/outline`, and name it in `AGENTS.md`.
+3. Register the guard in `.claude/settings.json`:
+
+   ```json
+   { "hooks": { "PreToolUse": [{ "matcher": "Read", "hooks": [{ "type": "command",
+     "command": "\"$(git rev-parse --show-toplevel)/scripts/read_guard.py\"" }] }] } }
+   ```
+
+The guard denies a Read with no `offset` or `limit` on a text file over
+40,000 bytes, and tells the agent to outline or search first. Set
+`READ_GUARD_BYTES` to change the limit. It fails open, so a broken hook never
+blocks work.
 
 ## Verify
 

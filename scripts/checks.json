@@ -1,0 +1,36 @@
+{
+  "requires": ["git"],
+  "inert": [".gitignore", "LICENSE", "CLAUDE.md", ".idea/*", ".agents/*", ".claude/*", ".codex/*"],
+  "checks": [
+    {
+      "id": "docsmith-selftest",
+      "cmd": ["python3", "skills/docsmith/scripts/test_lint_docs.py"],
+      "parse": "blocks",
+      "paths": ["skills/docsmith/*"]
+    },
+    {
+      "id": "tokenminator-selftest",
+      "cmd": ["python3", "skills/tokenminator/scripts/test_audit_tokens.py"],
+      "parse": "blocks",
+      "paths": ["skills/tokenminator/*"]
+    },
+    {
+      "id": "tokenminator-assets",
+      "cmd": ["python3", "skills/tokenminator/scripts/test_assets.py"],
+      "parse": "blocks",
+      "paths": ["skills/tokenminator/assets/*", "skills/tokenminator/scripts/test_assets.py", "scripts/*"]
+    },
+    {
+      "id": "agents-paths",
+      "cmd": ["python3", "scripts/test_agents_md.py"],
+      "parse": "blocks",
+      "paths": ["AGENTS.md", "scripts/*", "skills/*"]
+    },
+    {
+      "id": "docs-lint",
+      "cmd": ["python3", "skills/docsmith/scripts/lint_docs.py", "README.md", "{glob:skills/*/references/*.md}"],
+      "parse": "located",
+      "paths": ["README.md", "skills/*/references/*", "skills/docsmith/scripts/lint_docs.py"]
+    }
+  ]
+}

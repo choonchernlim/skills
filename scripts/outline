@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""Print the outline of a source file. Copy this file to scripts/outline and never edit it.
+
+Purpose: let an agent find the range it needs in a large file for a few hundred tokens,
+then read only that range, where opening the whole file costs tens of thousands.
+Invariants: standard library only; one `line: text` row per definition or heading.
+Usage: scripts/outline <file>... [--grep WORD]
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import sys
+
+# What counts as a definition depends on the language, or a Python comment reads as a Markdown
+# heading. Indented definitions count: a method is as useful to find as a function.
+CONSTANT = r"[A-Z][A-Z0-9_]{2,}\s*(?::[^=]+)?=(?!=)"
+PATTERNS = {
+    "python": rf"\s*(?:(?:async\s+)?def\s+\w+|class\s+\w+)|{CONSTANT}",
+    "script": (
+        r"\s*(?:export\s+)?(?:default\s+)?(?:(?:async\s+)?function\s*\*?\s*\w+"
+        r"|(?:abstract\s+)?(?:class|interface|type|enum|namespace)\s+\w+"
+        r"|(?:const|let|var)\s+\w+\s*=\s*(?:async\s*)?(?:\([^)]*\)|\w+)\s*=>)"
+        rf"|(?:export\s+)?const\s+{CONSTANT}"
+    ),
+    "go": r"(?:func\s+(?:\([^)]*\)\s*)?\w+|type\s+\w+|(?:const|var)\s+\w+)",
+    "rust": r"\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?(?:fn|struct|enum|trait|impl|mod|const|static)\s+\w",
+    "jvm": r"\s*(?:(?:public|private|protected|internal|static|final|abstract|override|open|suspend|data|sealed)\s+)*(?:class|interface|enum|object|record|fun|void|[\w<>\[\],.?]+)\s+\w+\s*[({]",
+    "shell": r"\s*(?:function\s+\w+|\w+\s*\(\)\s*\{)",
+    "terraform": r"(?:resource|module|variable|output|data|provider|locals)\b",
+    "markdown": r"#{1,4}\s+\S",
+}
+LANGUAGES = {
+    ".py": "python", ".js": "script", ".mjs": "script", ".cjs": "script", ".jsx": "script", ".ts": "script",
+    ".tsx": "script", ".go": "go", ".rs": "rust", ".java": "jvm", ".kt": "jvm", ".cs": "jvm", ".scala": "jvm",
+    ".sh": "shell", ".bash": "shell", ".tf": "terraform", ".md": "markdown",
+}
+WIDTH = 110
+
+
+def language(path: str, first_line: str) -> str:
+    extension = os.path.splitext(path)[1].lower()
+    if extension in LANGUAGES:
+        return LANGUAGES[extension]
+    shebang = first_line if first_line.startswith("#!") else ""
+    return "python" if "python" in shebang else "shell" if re.search(r"\b(ba|z)?sh\b", shebang) else "script" if "node" in shebang else "python"
+
+
+def outline(path: str, needle: str) -> list:
+    rows, fenced, definition = [], False, None
+    with open(path, encoding="utf-8", errors="replace") as source:
+        for number, line in enumerate(source, start=1):
+            if definition is None:
+                kind = language(path, line)
+                definition = re.compile(PATTERNS[kind])
+            if kind == "markdown" and line.lstrip().startswith("```"):
+                fenced = not fenced
+            if fenced or not definition.match(line):
+                continue
+            if needle and needle.lower() not in line.lower():
+                continue
+            rows.append(f"{number}: {line.rstrip()[:WIDTH]}")
+    return rows
+
+
+def main(argv: list) -> int:
+    parser = argparse.ArgumentParser(description="Print definitions and headings with their line numbers.")
+    parser.add_argument("paths", nargs="+")
+    parser.add_argument("--grep", default="", metavar="WORD", help="keep only rows that contain WORD")
+    args = parser.parse_args(argv)
+    for path in args.paths:
+        try:
+            rows = outline(path, args.grep)
+        except OSError as error:
+            print(f"{path}: {error.strerror}", file=sys.stderr)
+            return 2
+        if len(args.paths) > 1:
+            print(f"== {path}")
+        print("\n".join(rows) if rows else "(no definitions found; search the file instead)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

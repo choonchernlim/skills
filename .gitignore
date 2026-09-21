@@ -14,4 +14,7 @@ skills/.system/
 # Bytecode from running a skill's Python scripts.
 __pycache__/
 
+# Logs and the summary that scripts/check writes on each run.
+.check/
+
 .DS_Store

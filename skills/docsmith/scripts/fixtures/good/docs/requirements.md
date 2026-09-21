@@ -7,16 +7,16 @@ Type: requirements
 
 Audience: product owners and maintainers checking what the product must do.
 
-## Dashboard
+## Checkout
 
 ### Functional
 
 | ID | Requirement | Status | Evidence |
 | --- | --- | --- | --- |
-| DASH-001 | A clinician MUST be able to reopen a saved dashboard by URL without replaying chat. | Implemented | [api.ts](../src/api.ts) |
+| CHECKOUT-001 | A customer MUST be able to submit an order from the cart. | Implemented | [api.ts](../src/api.ts) |
 
 ### Non-Functional
 
 | ID | Requirement | Status | Evidence |
 | --- | --- | --- | --- |
-| DASH-N01 | The system MUST persist every dashboard change atomically with a revision check. | Implemented | [api.ts](../src/api.ts) |
+| CHECKOUT-N01 | The system MUST reject duplicate order submissions. | Implemented | [api.ts](../src/api.ts) |

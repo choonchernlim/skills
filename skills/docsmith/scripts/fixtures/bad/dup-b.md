@@ -9,4 +9,4 @@ Audience: nobody.
 
 ## Section
 
-The platform derives every model-facing tool name from the card's own id and intent ids so nothing is coordinated.
+The catalog derives every cache key from the product id and locale so no separate mapping is maintained.

@@ -9,50 +9,50 @@ Audience: both teams, to answer which fields a payload carries.
 
 ## Table of Contents
 
-- [Card Identity](#card-identity)
-- [Card Views](#card-views)
-- [Card Intents](#card-intents)
-- [Tile Request](#tile-request)
-- [Tile Response](#tile-response)
-- [Filter Snapshot](#filter-snapshot)
+- [Product Identity](#product-identity)
+- [Product Price](#product-price)
+- [Inventory Record](#inventory-record)
+- [Order Request](#order-request)
+- [Order Response](#order-response)
+- [Cart Snapshot](#cart-snapshot)
 - [Error Envelope](#error-envelope)
 - [Version Header](#version-header)
 
-## Card Identity
+## Product Identity
 
 | Field | Type | Constraint |
 | --- | --- | --- |
-| `id` | string | Unique per registry |
+| `id` | string | Unique per catalog |
 
-## Card Views
-
-| Field | Type | Constraint |
-| --- | --- | --- |
-| `views` | array | At least one entry |
-
-## Card Intents
+## Product Price
 
 | Field | Type | Constraint |
 | --- | --- | --- |
-| `intents` | array | May be empty |
+| `amount` | decimal | Greater than zero |
 
-## Tile Request
-
-| Field | Type | Constraint |
-| --- | --- | --- |
-| `tileId` | string | Must exist in the store |
-
-## Tile Response
+## Inventory Record
 
 | Field | Type | Constraint |
 | --- | --- | --- |
-| `model` | object | Matches the declared view |
+| `quantity` | integer | Zero or greater |
 
-## Filter Snapshot
+## Order Request
 
 | Field | Type | Constraint |
 | --- | --- | --- |
-| `patientId` | string | Required before any tile loads |
+| `productId` | string | Must exist in the catalog |
+
+## Order Response
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `orderId` | string | Unique per order |
+
+## Cart Snapshot
+
+| Field | Type | Constraint |
+| --- | --- | --- |
+| `items` | array | At least one entry |
 
 ## Error Envelope
 

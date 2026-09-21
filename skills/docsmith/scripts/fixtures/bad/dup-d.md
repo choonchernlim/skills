@@ -9,4 +9,4 @@ Audience: nobody.
 
 ## Section
 
-A capability that uses an existing widget requires exactly two logical production changes: the capability team adds one service with its card, and the platform team adds one allowlist origin.
+A new payment provider needs two production changes: the payments team adds an adapter, then adds its name to the supported providers.

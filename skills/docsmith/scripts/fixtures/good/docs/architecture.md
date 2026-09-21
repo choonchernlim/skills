@@ -14,28 +14,28 @@ between them.
 
 ```mermaid
 sequenceDiagram
-  actor Clinician as Clinician<br/>[PERSON]
-  participant Browser as Dashboard UI<br/>[UI]
-  participant Route as Tile Route<br/>[API]
-  participant Registry as Card Registry<br/>[SERVICE]
+  actor Customer as Customer<br/>[PERSON]
+  participant Browser as Storefront UI<br/>[UI]
+  participant Route as Order API<br/>[API]
+  participant Inventory as Inventory Client<br/>[SERVICE]
 
-  Clinician->>Browser: 1. Select a patient
-  Browser->>Route: 2. Request one tile model
-  Route->>Registry: 3. Resolve the saved capability
-  Registry-->>Route: 4. Return origin and card
+  Customer->>Browser: 1. Submit the cart
+  Browser->>Route: 2. Create the order
+  Route->>Inventory: 3. Reserve stock
+  Inventory-->>Route: 4. Confirm the reservation
 ```
 
-1. The clinician selects a patient, which unlocks every tile.
-2. Each tile asks the server for its own model.
-3. The server resolves the origin from the registry.
-4. The registry answers from its cache.
+1. The customer submits the current cart.
+2. The storefront asks the API to create an order.
+3. The API asks the inventory client to reserve stock.
+4. The inventory client confirms the reservation.
 
 | Node | Source |
 | --- | --- |
-| Clinician | - |
-| Dashboard UI | [../src/](../src/) |
-| Tile Route | [../src/api.ts](../src/api.ts) |
-| Card Registry | [../src/widgets/registry.ts](../src/widgets/registry.ts) |
+| Customer | - |
+| Storefront UI | [../src/](../src/) |
+| Order API | [../src/api.ts](../src/api.ts) |
+| Inventory Client | [../src/inventory/client.ts](../src/inventory/client.ts) |
 
-The UI never stores a service URL. It resolves the origin on every request,
-so removing a service from the registry takes effect within one refresh.
+The UI never writes inventory directly. The order API coordinates the
+reservation so one component owns the transaction boundary.

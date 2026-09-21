@@ -67,7 +67,7 @@ Fill guidance:
 - The Resources table lists the docs index, every guide, and the ADR
   directory, one row each.
 - Contributing, license, and security link to their own files.
-- No "Adding a Capability" or similar recipe here. The how-to guide owns it;
+- No "Adding a Plugin" or similar recipe here. The how-to guide owns it;
   the Introduction links it in one sentence.
 
 ## FOLDER Profile

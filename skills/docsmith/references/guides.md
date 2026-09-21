@@ -100,7 +100,7 @@ One alphabetical table, no other sections. No cap.
 ```markdown
 | Term | Meaning | Owning Doc |
 | --- | --- | --- |
-| Capability card | The JSON a capability serves describing its identity, views, and intents. | [contracts.md](contracts.md#capability-card) |
+| Order token | The opaque value that identifies one accepted order. | [contracts.md](contracts.md#order-token) |
 ```
 
 Meaning is one sentence under 20 words. The term is the canonical noun;
@@ -117,7 +117,7 @@ sentence plus a link.
 | Team and deployment ownership | `architecture.md` |
 | Troubleshooting symptoms | `operations.md` |
 | Environment variables and ports | `operations.md` |
-| Contract and card fields | The contracts or data-model reference |
+| Contract and data fields | The contracts or data-model reference |
 | Source map of a directory | That directory's folder README |
 | Definitions | `glossary.md` |
 | Requirement statements | `requirements.md` |

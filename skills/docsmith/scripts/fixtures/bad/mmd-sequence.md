@@ -13,16 +13,16 @@ Lead.
 
 ```mermaid
 sequenceDiagram
-  participant Clinician as Clinician<br/>[PERSON]
-  participant Browser as 1. Dashboard UI<br/>[UI]
-  participant Route as Tile Route<br/>[API]
+  participant Customer as Customer<br/>[PERSON]
+  participant Browser as 1. Storefront UI<br/>[UI]
+  participant Route as Order API<br/>[API]
 
-  Clinician->>Browser: Select a patient
-  Browser->>Route: 2. Request one tile model
+  Customer->>Browser: Submit the cart
+  Browser->>Route: 2. Create the order
 ```
 
 | Node | Source |
 | --- | --- |
-| Clinician | - |
-| 1. Dashboard UI | - |
-| Tile Route | - |
+| Customer | - |
+| 1. Storefront UI | - |
+| Order API | - |

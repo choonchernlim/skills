@@ -5,7 +5,7 @@ Type: index
 
 # Documentation Index
 
-Audience: anyone working in or reviewing the sample dashboard.
+Audience: anyone working in or reviewing the sample shop.
 
 ## First Week
 

@@ -30,10 +30,11 @@ skill's folder.
 | `docs/requirements.md` | `requirements` | [references/requirements.md](references/requirements.md) |
 | A decision to record, or a file in the ADR directory | `adr` | [references/adr.md](references/adr.md) |
 
-Always load [references/style.md](references/style.md). Load
-[references/mermaid.md](references/mermaid.md) before drawing or editing a
-diagram. If the target fits two types, split it into two files; if it fits
-none, ask before writing.
+Always load [references/style.md](references/style.md). Before drawing or
+editing a diagram, load [references/mermaid.md](references/mermaid.md), then
+load exactly one diagram-family reference selected there. If the target fits
+two document types, split it into two files; if it fits none, ask before
+writing.
 
 ## Step 2: Audit
 
@@ -63,6 +64,9 @@ Then produce two artifacts and show both in the handoff:
 - Use glossary terms as the only names for domain concepts. If a term is
   missing, add it to the glossary in the same change.
 - Every diagram uses the one block from the mermaid reference.
+- Keep the skill project agnostic. Templates, examples, and fixtures must use
+  invented names and paths, never names or paths copied from the repository
+  being documented.
 - A touched file is converted to house style in full. Untouched files are
   left alone, even when they disagree with these rules.
 

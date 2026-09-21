@@ -7,6 +7,6 @@ Type: reference
 
 Audience: nobody.
 
-## Adding a capability
+## Adding a plugin
 
 Text.

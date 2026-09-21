@@ -30,19 +30,19 @@ Audience: product owners and maintainers checking what the product must do.
 
 (Only past 100 lines or 5 H2 sections.)
 
-## Dashboard
+## Checkout
 
 ### Functional
 
 | ID | Requirement | Status | Evidence |
 | --- | --- | --- | --- |
-| DASH-001 | A clinician MUST be able to reopen a saved dashboard by URL without replaying chat. | Implemented | [dashboard.spec.ts](../ui/e2e/dashboard.spec.ts) |
+| CHECKOUT-001 | A customer MUST be able to submit an order from the cart. | Implemented | [checkout.spec.ts](../tests/checkout.spec.ts) |
 
 ### Non-Functional
 
 | ID | Requirement | Status | Evidence |
 | --- | --- | --- | --- |
-| DASH-N01 | The system MUST persist every dashboard change atomically with a revision check. | Implemented | [test_store.py](../platform/tests/test_store.py) |
+| CHECKOUT-N01 | The system MUST reject duplicate order submissions. | Implemented | [test_orders.py](../tests/test_orders.py) |
 ```
 
 ## Rules
@@ -50,7 +50,7 @@ Audience: product owners and maintainers checking what the product must do.
 | Rule | Detail |
 | --- | --- |
 | Domains | One H2 per domain, named with a glossary term. Each has a Functional and a Non-Functional H3. |
-| Sentence | One sentence, at most 25 words. Functional ones start with the user: "A clinician MUST be able to". |
+| Sentence | One sentence, at most 25 words. Functional ones start with the user: "A customer MUST be able to". |
 | Keywords | RFC 2119 words in capitals: MUST, MUST NOT, SHALL, SHOULD, MAY. One keyword per requirement. |
 | ID | `DOMAIN-001` for functional, `DOMAIN-N01` for non-functional. Never reused. |
 | Status | `Implemented`, `Gap`, or `Future`. |
@@ -65,5 +65,5 @@ detail to the evidence link and restate the behavior the user sees.
 
 Non-functional rows cover qualities, not features: performance, security,
 reliability, accessibility, and operability. They still read from the
-outside: "The system MUST respond to a tile request within 10 seconds or
-show an error for that tile only."
+outside: "The system MUST respond to an order submission within 10 seconds
+or show an error for that order."

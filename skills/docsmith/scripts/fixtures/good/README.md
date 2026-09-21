@@ -1,45 +1,45 @@
 <!--
-Purpose: Entry point for the sample dashboard: what it is, how to run it, where the guides live.
+Purpose: Entry point for the sample shop: what it is, how to run it, where the guides live.
 Type: readme-project
 -->
 
-# Sample Dashboard
+# Sample Shop
 
-A dashboard that renders tiles from independently deployed services.
+A storefront that checks inventory before accepting an order.
 
 ## Introduction
 
-Clinicians need one screen that shows data from several services. This
-project assembles that screen from tiles, each served by its own team.
+Customers need current inventory while placing an order. This project checks
+the warehouse system before it stores each order.
 
 One request path shows how the pieces relate.
 
 ```mermaid
 flowchart TD
-  subgraph UI["UI Team Deployment"]
-    Browser["Dashboard UI<br/>[UI]"]
-    Route[/"Tile Route<br/>[API]"/]
+  subgraph Web["<span style='display:inline-block;width:280px;text-align:left'>Web Team<br/>[DEPLOYMENT]</span>"]
+    Browser["Storefront UI<br/>[UI]"]
+    Route[/"Order API<br/>[API]"/]
   end
 
-  subgraph Platform["Platform Team Deployment"]
-    Registry["Card Registry<br/>[SERVICE]"]
-    Store[("Dashboard Store<br/>[DATABASE]")]
+  subgraph Orders["<span style='display:inline-block;width:280px;text-align:left'>Order Team<br/>[DEPLOYMENT]</span>"]
+    Inventory["Inventory Client<br/>[SERVICE]"]
+    Store[("Order Store<br/>[DATABASE]")]
   end
 
-  Browser -->|"1. requests model"| Route
-  Route -->|"2. resolves origin"| Registry
-  Registry -->|"reads"| Store
+  Browser -->|"1. submits order"| Route
+  Route -->|"2. checks stock"| Inventory
+  Route -->|"stores"| Store
 ```
 
-1. The browser asks its own server for one tile's model.
-2. The server resolves the saved capability through the registry.
+1. The browser sends one order to its API.
+2. The API checks stock through the inventory client.
 
 | Node | Source |
 | --- | --- |
-| Dashboard UI | [src/](src/) |
-| Tile Route | [src/api.ts](src/api.ts) |
-| Card Registry | [src/widgets/registry.ts](src/widgets/registry.ts) |
-| Dashboard Store | - |
+| Storefront UI | [src/](src/) |
+| Order API | [src/api.ts](src/api.ts) |
+| Inventory Client | [src/inventory/client.ts](src/inventory/client.ts) |
+| Order Store | - |
 
 ## Getting Started
 

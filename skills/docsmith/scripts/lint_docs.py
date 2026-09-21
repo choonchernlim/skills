@@ -27,7 +27,22 @@ TYPES = {
     "glossary": None,
 }
 GUIDE_TYPES = {"how-to", "reference", "explanation", "index", "requirements"}
-MERMAID_TYPES = {"PERSON", "TEAM", "UI", "API", "AGENT", "TOOL", "SERVICE", "SYSTEM", "DATA", "DATABASE"}
+APPLICATION_MERMAID_TYPES = {
+    "PERSON", "TEAM", "UI", "API", "AGENT", "TOOL", "SERVICE", "SYSTEM", "DATA", "DATABASE",
+}
+INFRASTRUCTURE_MERMAID_TYPES = {
+    "GCP PROJECT", "VPC", "PRIVATE SERVICE CONNECT", "EXTERNAL LOAD BALANCER",
+    "CLOUD RUN", "CLOUD RUN JOB", "CLOUD SQL", "SECRET MANAGER",
+    "AZURE APP SERVICE", "AZURE FUNCTIONS", "AZURE SQL", "VIRTUAL NETWORK",
+    "APPLICATION GATEWAY", "KEY VAULT", "KUBERNETES", "VM", "PHYSICAL SERVER",
+    "POSTGRES", "FIREWALL", "LOAD BALANCER", "DNS", "OBJECT STORAGE",
+    "MESSAGE BROKER", "CONTAINER REGISTRY",
+}
+MERMAID_TYPES = APPLICATION_MERMAID_TYPES | INFRASTRUCTURE_MERMAID_TYPES
+BOUNDARY_TYPES = {
+    "REPO", "TEAM", "DEPLOYMENT", "TRUST BOUNDARY", "NETWORK", "ENVIRONMENT",
+    "DATACENTER", "SUBSCRIPTION", "GCP PROJECT",
+}
 
 BANNED_WORDS = [
     "just", "simply", "easy", "easily", "trivial", "straightforward", "painless",
@@ -457,8 +472,10 @@ def check_mermaid(doc: Doc, blocks: list[Block]) -> None:
             titles = check_flowchart(doc, line_no, body[1:])
         elif head == "sequenceDiagram":
             titles = check_sequence(doc, line_no, body[1:])
+        elif head == "erDiagram":
+            titles = check_er_diagram(doc, line_no, body[1:])
         else:
-            doc.add(line_no, "MMD", f"diagram must start with 'flowchart TD' or 'sequenceDiagram', found '{head}'")
+            doc.add(line_no, "MMD", f"diagram must start with 'flowchart TD', 'sequenceDiagram', or 'erDiagram', found '{head}'")
             continue
         if any("click " in l for l in body):
             doc.add(line_no, "MMD", "click directives are not allowed; the Node table carries the links")
@@ -483,16 +500,41 @@ NODE_RX = re.compile(r'(\w+)\s*(\[\(|\[/|\[|\(\(|\(|\{)\s*"([^"]*)"')
 NODE_DEF_RX = re.compile(r'(\w+)\s*(?:\[\(|\[/|\[|\(\(|\(|\{)\s*"[^"]*"\s*(?:\)\]|/\]|\]|\)\)|\)|\})')
 ARROW = r'(?:(?:-->|==>|-\.->|---)\s*(?:\|\s*"([^"]*)"\s*\|)?|-\.\s*"([^"]*)"\s*\.->|--\s*"([^"]*)"\s*-->|==\s*"([^"]*)"\s*==>)'
 EDGE_RX = re.compile(r'(\w+)\s*' + ARROW + r'\s*(?=(\w+))')
+BOUNDARY_LABEL_RX = re.compile(
+    r"^<span style='display:inline-block;width:(\d+)px;text-align:left'>(.+)<br/>\[([A-Z ]+)\]</span>$"
+)
+
+
+def flowchart_family(body: list[str]) -> str:
+    for line in body:
+        for match in NODE_RX.finditer(line):
+            label = match.group(3)
+            label_match = re.match(r"^.+<br/>\[([A-Z, ]+)\]$", label)
+            if label_match and label_match.group(1).strip() in INFRASTRUCTURE_MERMAID_TYPES:
+                return "infrastructure"
+    return "application"
 
 
 def check_flowchart(doc: Doc, line_no: int, body: list[str]) -> list[str]:
     nodes: dict[str, str] = {}
     edges: list[tuple[str, str]] = []
+    family = flowchart_family(body)
     for l in body:
         s = l.strip()
         if s.startswith("subgraph"):
-            if not re.match(r'^subgraph\s+\w+\["[^"]+"\]', s):
+            subgraph_match = re.match(r'^subgraph\s+\w+\["([^"]+)"\]', s)
+            if not subgraph_match:
                 doc.add(line_no, "MMD", f"subgraph needs an id and a quoted label: '{s}'")
+                continue
+            boundary_match = BOUNDARY_LABEL_RX.match(subgraph_match.group(1))
+            if not boundary_match:
+                doc.add(line_no, "MMD", "boundary label must be left aligned as '<name><br/>[TYPE]' in the approved span markup")
+                continue
+            width, name, boundary_type = boundary_match.groups()
+            if int(width) < 120:
+                doc.add(line_no, "MMD", f"boundary '{name}' width is too narrow for a readable label")
+            if boundary_type not in BOUNDARY_TYPES:
+                doc.add(line_no, "MMD", f"unknown boundary TYPE '{boundary_type}' in '{name}'")
             continue
         if s in ("end",) or s.startswith("direction"):
             if s.startswith("direction"):
@@ -508,6 +550,8 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str]) -> list[str]:
             title, typ = lm.group(1).strip(), lm.group(2).strip()
             if typ not in MERMAID_TYPES:
                 doc.add(line_no, "MMD", f"unknown TYPE '{typ}' in node '{title}'")
+            if family == "infrastructure" and typ in {"SYSTEM", "SERVICE", "DATABASE"}:
+                doc.add(line_no, "MMD", f"infrastructure node '{title}' uses generic TYPE '{typ}'; name the platform service")
             if re.match(r"^\d+[a-z]?\.\s", title):
                 doc.add(line_no, "MMD", f"node title carries a number: '{title}'; numbers belong on edges")
             if len(title.split()) > 4:
@@ -545,6 +589,29 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str]) -> list[str]:
         if not set(nodes) <= seen:
             doc.add(line_no, "MMD", "diagram holds more than one disconnected graph; split it")
     return list(nodes.values())
+
+
+def check_er_diagram(doc: Doc, line_no: int, body: list[str]) -> list[str]:
+    entities: list[str] = []
+    relationships = 0
+    for line in body:
+        stripped = line.strip()
+        entity_match = re.match(r"^(\w+)\s*\{$", stripped)
+        if entity_match:
+            entities.append(entity_match.group(1))
+            continue
+        if re.match(r'^\w+\s+[|o}{.]+--[|o}{.]+\s+\w+\s*:\s*"[^"]+"$', stripped):
+            relationships += 1
+        if stripped.startswith("subgraph"):
+            doc.add(line_no, "MMD", "ER diagrams do not use boundaries; state ownership in prose and the source table")
+    unique_entities = list(dict.fromkeys(entities))
+    if len(unique_entities) < 2:
+        doc.add(line_no, "MMD", "an ER diagram needs at least two entities")
+    if len(unique_entities) > 8:
+        doc.add(line_no, "MMD", f"{len(unique_entities)} entities exceeds the cap of 8; split by aggregate")
+    if relationships == 0:
+        doc.add(line_no, "MMD", "an ER diagram needs at least one labelled relationship")
+    return unique_entities
 
 
 def check_sequence(doc: Doc, line_no: int, body: list[str]) -> list[str]:

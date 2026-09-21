@@ -35,7 +35,7 @@ Every rule names the `lint_docs.py` code that checks it. Rules marked
 | Every file stays under the line cap for its type (see [Line Caps](#line-caps)). | `CAP` |
 
 Title Case capitalizes every word except articles, conjunctions, and short
-prepositions: "Table of Contents", "Adding a Capability", "How the Route
+prepositions: "Table of Contents", "Adding a Plugin", "How the Route
 Finds the API". The first and last words are always capitalized.
 
 ## Density

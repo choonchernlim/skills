@@ -47,6 +47,8 @@ EXPECTED = {
     "mmd-lead.md": "MMD",
     "mmd-disconnected.md": "MMD",
     "mmd-sequence.md": "MMD",
+    "mmd-boundary.md": "MMD",
+    "mmd-infrastructure-generic.md": "MMD",
 }
 EXPECTED_COUNTS = {
     "link.md": ("LINK", 5),

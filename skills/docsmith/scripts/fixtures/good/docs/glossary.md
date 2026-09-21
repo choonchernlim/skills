@@ -7,5 +7,5 @@ Type: glossary
 
 | Term | Meaning | Owning Doc |
 | --- | --- | --- |
-| Capability card | The JSON a service publishes describing its identity and views. | [architecture.md](architecture.md) |
-| Tile | One rendered view of one capability on the dashboard. | [architecture.md](architecture.md) |
+| Cart | The products a customer intends to order. | [architecture.md](architecture.md) |
+| Inventory reservation | Stock held while an order is accepted. | [architecture.md](architecture.md) |

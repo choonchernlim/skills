@@ -7,18 +7,11 @@ Type: explanation
 
 Audience: maintainers, to see one rule fail.
 
-The boundary label width is a hand-tuned guess.
+The boundary title is long enough to wrap behind its first node.
 
 ```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      top: 4
-      bottom: 32
----
-flowchart TD
-  subgraph App["<span style='display:inline-block;width:320px;text-align:left'>Application<br/>[DEPLOYMENT]</span>"]
+graph TD
+  subgraph App["Application Deployment Boundary"]
     direction TB
     One["One<br/>[SERVICE]"]
     Two["Two<br/>[SERVICE]"]
@@ -32,6 +25,7 @@ flowchart TD
 
 | Node | Source |
 | --- | --- |
+| Application Deployment Boundary [DEPLOYMENT] | - |
 | One | - |
 | Two | - |
 | Three | - |

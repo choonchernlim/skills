@@ -81,3 +81,11 @@ contents. The pass never adds, removes, or rewords a sentence inside
 Context, Decision, or Consequences. Content under a heading the skeleton
 lacks (for example "Rationale") moves under the nearest skeleton heading,
 unchanged. The diff must show moved and reformatted lines only.
+
+The lint follows the same rule. An ADR is settled once its status is
+`Accepted`, `Rejected`, `Deprecated`, or `Superseded`.
+
+- A settled ADR reports only the codes a format-only pass can fix:
+  `HDR`, `TTL`, `HCASE`, `EMPTY`, `TOC`, `FENCE`, and `LINK`.
+- A `Proposed` ADR, or one with no status, is checked against every rule.
+- A settled ADR owns any fact it shares, so `DUP` lands on the editable file.

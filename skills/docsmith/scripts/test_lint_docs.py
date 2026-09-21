@@ -55,24 +55,35 @@ EXPECTED = {
     "mmd-boundary-width.md": "MMD",
     "mmd-boundary-direction.md": "MMD",
     "mmd-boundary-sideways.md": "MMD",
+    "mmd-boundary-table.md": "MMD",
+    "mmd-boundary-link.md": "MMD",
     "mmd-frontmatter.md": "MMD",
-    "mmd-frontmatter-changed.md": "MMD",
-    "mmd-frontmatter-stray.md": "MMD",
+    "mmd-directive.md": "MMD",
+    "mmd-html.md": "MMD",
+    "mmd-keyword.md": "MMD",
+    "mmd-markdown-label.md": "MMD",
+    "mmd-long-arrow.md": "MMD",
     "view/docs/architecture.md": "VIEW",
     "mmd-infrastructure-generic.md": "MMD",
+    "adr-settled.md": "TOC",
+    "adr-proposed.md": "SENT",
 }
 EXPECTED_COUNTS = {
     "link.md": ("LINK", 5),
     "word.md": ("WORD", 3),
-    "mmd-label.md": ("MMD", 5),
+    "mmd-label.md": ("MMD", 6),
     "mmd-sequence.md": ("MMD", 3),
     "mmd-boundary.md": ("MMD", 1),
     "mmd-boundary-width.md": ("MMD", 1),
     "mmd-boundary-direction.md": ("MMD", 1),
     "mmd-boundary-sideways.md": ("MMD", 1),
+    "mmd-boundary-table.md": ("MMD", 1),
+    "mmd-boundary-link.md": ("MMD", 1),
     "mmd-frontmatter.md": ("MMD", 1),
-    "mmd-frontmatter-changed.md": ("MMD", 1),
-    "mmd-frontmatter-stray.md": ("MMD", 1),
+    "mmd-directive.md": ("MMD", 1),
+    "mmd-html.md": ("MMD", 1),
+    "mmd-keyword.md": ("MMD", 1),
+    "mmd-markdown-label.md": ("MMD", 1),
 }
 
 
@@ -139,6 +150,19 @@ def main() -> int:
         if owners != {os.path.join(BAD, linted)} or "in 1 file(s)" not in out:
             failures.append(f"--dup-scope {scope}: expected DUP reported on {linted} only, got:\n{out}")
 
+    # A settled ADR is immutable, so it reports only what a format-only pass can fix.
+    code, out = run([os.path.join(BAD, "adr-settled.md")], BAD)
+    if " SENT " in out or "1 finding(s)" not in out:
+        failures.append(f"adr-settled.md: expected TOC alone on an accepted ADR, got:\n{out}")
+
+    # A settled ADR owns a shared fact, so DUP lands on the editable guide in either order.
+    pair = [os.path.join(BAD, "adr-settled-dup.md"), os.path.join(BAD, "adr-settled-guide.md")]
+    for paths in (pair, pair[::-1]):
+        code, out = run(paths, BAD)
+        owners = {line.split(":")[0] for line in out.splitlines() if " DUP " in line}
+        if owners != {pair[1]}:
+            failures.append(f"settled ADR with a guide: expected DUP on the guide only, got:\n{out}")
+
     examples = reference_examples()
     if len(examples) < 2:
         failures.append(f"expected a Markdown example in the application and infrastructure references, found {len(examples)}")
@@ -155,7 +179,7 @@ def main() -> int:
         print("\n\n".join(failures))
         print(f"\n{len(failures)} failure(s)")
         return 1
-    print(f"ok: good set passes, {len(EXPECTED)} bad fixtures raise their codes, cross-file DUP and NODE detected, "
+    print(f"ok: good set passes, {len(EXPECTED)} bad fixtures raise their codes, cross-file DUP and NODE detected, settled ADRs hold format rules only, "
           f"{len(examples)} reference examples obey the Mermaid rules")
     return 0
 

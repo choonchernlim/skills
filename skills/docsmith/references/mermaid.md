@@ -12,6 +12,7 @@ Audience: the writer, before drawing or editing any diagram.
 - [Families](#families)
 - [Ownership](#ownership)
 - [Diagram Block](#diagram-block)
+- [Portable Syntax](#portable-syntax)
 - [Shared Visual Language](#shared-visual-language)
 - [Boundaries](#boundaries)
 - [Size Budget](#size-budget)
@@ -61,11 +62,32 @@ Every diagram appears in this order:
 Use `-` when a node is a person, external system, or concept without a source
 in the repository. Never use Mermaid `click` directives.
 
+## Portable Syntax
+
+A diagram must render in every viewer a reader opens it in: an IDE preview,
+GitHub, and the Azure DevOps repository browser. Those viewers embed different
+Mermaid releases, and Azure DevOps reads the first line of a block as the
+diagram type. Use only syntax that every one of them accepts.
+
+| Rule | What Breaks Otherwise |
+| --- | --- |
+| The first line is `graph TD`, `sequenceDiagram`, or `erDiagram`. | Frontmatter or a `%%{init}%%` directive on line one shows "Unsupported diagram type". |
+| Draw a flowchart with `graph TD`, never `flowchart TD`. | Azure DevOps documents the `flowchart` keyword as unsupported. |
+| `<br/>` is the only HTML in a label. | Other tags and inline styles are stripped or shown as text. |
+| Write a step number as `1: text`. | Mermaid 11 parses a label as Markdown, and `1. text` draws "Unsupported markdown: list". |
+| Never open a label with `-`, `*`, `+`, `>`, `#`, `1.`, or `1)`, and never use a backtick Markdown string. | The same Markdown parsing. |
+| Use `-->`, `-.->`, and `==>` at their normal length. | Azure DevOps rejects lengthened arrows such as `---->`. |
+| Link nodes, never a boundary. | Azure DevOps rejects an edge that starts or ends on a subgraph. |
+| Never set configuration, themes, colors, styles, or classes. | Each renderer supplies its own theme in light and dark mode. |
+
+The local renderer runs the newest Mermaid, so a clean PNG does not prove
+portability. The lint enforces this table; trust it over the render.
+
 ## Shared Visual Language
 
 - Read top to bottom at normal IDE and repository preview width.
 - Use short noun labels and verb-led edges.
-- Put order numbers on edges or messages, never on nodes.
+- Put order numbers on edges or messages as `1: text`, never on nodes.
 - Use rectangles for actors and services, cylinders for persisted data, and parallelograms for APIs.
 - Keep one connected graph per block.
 - Prefer three siblings abreast; four is the maximum after rendering proves they remain readable.
@@ -77,36 +99,30 @@ A boundary is a subgraph. It always represents a real boundary: repository,
 ownership, deployment, trust, network, environment, or physical location. It
 never exists only to arrange nodes.
 
-A flowchart with a boundary opens with this frontmatter, unchanged. Every
-boundary uses a left-aligned two-line label and declares its direction:
+Every boundary has a plain one-line title and declares its direction. Its
+type goes in the Node table, as a `Name [TYPE]` row above the node rows:
 
 ```text
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      top: 4
-      bottom: 32
----
-flowchart TD
-  subgraph Boundary["<span style='display:inline-block;width:480px;text-align:left'>Boundary name<br/>[TYPE]</span>"]
+graph TD
+  subgraph Boundary["Boundary name"]
     direction TB
 ```
 
-| Nodes Abreast in the Boundary | Span Width |
-| --- | ---: |
-| 1 or 2 | `480px` |
-| 3 | `720px` |
-| 4 | `960px` |
+```text
+| Node | Source |
+| --- | --- |
+| Boundary name [TYPE] | - |
+```
 
-- The narrow label sits top left, clear of every edge that enters from above.
-- The margin makes room for the second label line.
-- A span narrower than its boundary drifts right into the entry edges.
+- A title holds the name only, in 24 characters or fewer. Mermaid wraps a
+  longer title and hides its second line behind the first node.
+- The title has no `[TYPE]`, no `<br/>`, and no markup, so it needs no
+  configuration to make room for it.
 - Without `direction TB`, a boundary with no outside edges renders left to right.
-- A diagram without a boundary has no frontmatter.
+- An edge that enters a boundary from above may cross its centered title.
+  Keep the title short so it stays legible.
 
-The family reference defines allowed boundary types. Never set colors or
-styles; the theme of each renderer supplies them in light and dark mode.
+The family reference defines allowed boundary types.
 
 ## Size Budget
 

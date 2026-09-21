@@ -3,20 +3,18 @@ Purpose: Fixture.
 Type: explanation
 -->
 
-# Boundary Direction
+# Keyword
 
 Audience: maintainers, to see one rule fail.
 
-The boundary declares no direction.
+The block uses the flowchart keyword.
 
 ```mermaid
-graph TD
-  subgraph App["Application"]
-    One["One<br/>[SERVICE]"]
-    Two["Two<br/>[SERVICE]"]
-    Three["Three<br/>[SERVICE]"]
-    Four["Four<br/>[SERVICE]"]
-  end
+flowchart TD
+  One["One<br/>[SERVICE]"]
+  Two["Two<br/>[SERVICE]"]
+  Three["Three<br/>[SERVICE]"]
+  Four["Four<br/>[SERVICE]"]
   One -->|"calls"| Two
   Two -->|"calls"| Three
   Three -->|"calls"| Four
@@ -24,7 +22,6 @@ graph TD
 
 | Node | Source |
 | --- | --- |
-| Application [DEPLOYMENT] | - |
 | One | - |
 | Two | - |
 | Three | - |

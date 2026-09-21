@@ -50,14 +50,9 @@ VIEW_OWNERS = {
     "data": "data-model.md",
     "infrastructure": "infrastructure.md",
 }
-TITLE_MARGIN_CONFIG = [
-    "config:",
-    "  flowchart:",
-    "    subGraphTitleMargin:",
-    "      top: 4",
-    "      bottom: 32",
-]
-BOUNDARY_WIDTHS = {480, 720, 960}
+# Mermaid wraps a boundary title at 200 pixels and hides the second line behind
+# the first node. 24 characters stay on one line in every renderer font.
+BOUNDARY_TITLE_MAX = 24
 
 BANNED_WORDS = [
     "just", "simply", "easy", "easily", "trivial", "straightforward", "painless",
@@ -93,6 +88,13 @@ TOC_LINES = 100
 TOC_H2 = 5
 DUP_WINDOW = 12
 
+# An ADR past Proposed is an immutable record: only a format-only pass may touch it,
+# so only the codes such a pass can fix are reported on it.
+SETTLED_STATUSES = {"accepted", "rejected", "deprecated", "superseded"}
+SETTLED_ADR_CODES = {"HDR", "TTL", "HCASE", "EMPTY", "TOC", "FENCE", "LINK"}
+STATUS_WORD_RX = re.compile(r"\b(proposed|accepted|rejected|deprecated|superseded)\b", re.I)
+STATUS_LINE_RX = re.compile(r"^\s*(?:[-*]\s*)?\**status\**\s*:", re.I)
+
 
 @dataclass
 class Finding:
@@ -122,6 +124,7 @@ class Doc:
     findings: list[Finding] = field(default_factory=list)
     prose_shingles: dict[str, int] = field(default_factory=dict)
     diagrams: list[Diagram] = field(default_factory=list)
+    settled: bool = False
 
     def add(self, line: int, code: str, message: str) -> None:
         self.findings.append(Finding(self.path, line, code, message))
@@ -497,20 +500,25 @@ def check_mermaid(doc: Doc, blocks: list[Block], root: str) -> None:
         if b.kind != "fence" or b.lang != "mermaid":
             continue
         line_no = b.start + 1
-        body = [l for l in b.lines[1:-1] if l.strip() and not l.strip().startswith("%%")]
+        raw = [l for l in b.lines[1:-1] if l.strip()]
+        if any(l.strip().startswith("%%{") for l in raw):
+            doc.add(line_no, "MMD", "init directives are not portable; a viewer that reads the first line as the diagram type rejects the block")
+        body = [l for l in raw if not l.strip().startswith("%%")]
         config, body = split_frontmatter(body)
+        if config is not None:
+            doc.add(line_no, "MMD", "frontmatter is not portable; Azure DevOps reads the first line as the diagram type and reports 'Unsupported diagram type'")
         if not body:
             doc.add(line_no, "MMD", "empty diagram")
             continue
         head = body[0].strip()
-        has_boundary = head == "flowchart TD" and any(l.strip().startswith("subgraph") for l in body)
-        if has_boundary and config != TITLE_MARGIN_CONFIG:
-            doc.add(line_no, "MMD", "a flowchart with a boundary opens with the title margin frontmatter from the mermaid reference, unchanged")
-        if not has_boundary and config is not None:
-            doc.add(line_no, "MMD", "frontmatter is only for the title margin of a flowchart with a boundary; remove it")
-        if head == "flowchart TD":
+        check_portable(doc, line_no, body)
+        boundaries: list[str] = []
+        if head == "graph TD":
             family = flowchart_family(body[1:])
-            titles, edges = check_flowchart(doc, line_no, body[1:], family)
+            titles, edges, boundaries = check_flowchart(doc, line_no, body[1:], family)
+        elif head.startswith("flowchart"):
+            doc.add(line_no, "MMD", f"use 'graph TD', not '{head}'; Azure DevOps documents the 'flowchart' keyword as unsupported")
+            continue
         elif head == "sequenceDiagram":
             family = "runtime"
             titles, edges = check_sequence(doc, line_no, body[1:])
@@ -518,7 +526,7 @@ def check_mermaid(doc: Doc, blocks: list[Block], root: str) -> None:
             family = "data"
             titles, edges = check_er_diagram(doc, line_no, body[1:])
         else:
-            doc.add(line_no, "MMD", f"diagram must start with 'flowchart TD', 'sequenceDiagram', or 'erDiagram', found '{head}'")
+            doc.add(line_no, "MMD", f"diagram must start with 'graph TD', 'sequenceDiagram', or 'erDiagram', found '{head}'")
             continue
         if any("click " in l for l in body):
             doc.add(line_no, "MMD", "click directives are not allowed; the Node table carries the links")
@@ -533,10 +541,22 @@ def check_mermaid(doc: Doc, blocks: list[Block], root: str) -> None:
             doc.diagrams.append(Diagram(line_no, family, titles, edges))
             continue
         sources: dict[str, str] = {}
+        boundary_rows: dict[str, str] = {}
         for r in after[0].lines[2:]:
             cells = [c.strip() for c in r.strip().strip("|").split("|")]
-            if cells and cells[0]:
-                sources[re.sub(r"`", "", cells[0])] = resolve_source(doc, cells[1] if len(cells) > 1 else "", root)
+            if not cells or not cells[0]:
+                continue
+            name = re.sub(r"`", "", cells[0])
+            row = BOUNDARY_ROW_RX.match(name)
+            if row and row.group(1) in boundaries:
+                boundary_rows[row.group(1)] = row.group(2)
+                continue
+            sources[name] = resolve_source(doc, cells[1] if len(cells) > 1 else "", root)
+        for name in boundaries:
+            if name not in boundary_rows:
+                doc.add(after[0].start + 1, "MMD", f"boundary '{name}' needs a '{name} [TYPE]' row in the Node table")
+            elif boundary_rows[name] not in BOUNDARY_TYPES:
+                doc.add(after[0].start + 1, "MMD", f"unknown boundary TYPE '{boundary_rows[name]}' in '{name}'")
         for t in titles:
             if t not in sources:
                 doc.add(after[0].start + 1, "MMD", f"node '{t}' is missing from the Node table")
@@ -559,9 +579,33 @@ NODE_RX = re.compile(r'(\w+)\s*(\[\(|\[/|\[|\(\(|\(|\{)\s*"([^"]*)"')
 NODE_DEF_RX = re.compile(r'(\w+)\s*(?:\[\(|\[/|\[|\(\(|\(|\{)\s*"[^"]*"\s*(?:\)\]|/\]|\]|\)\)|\)|\})')
 ARROW = r'(?:(?:-->|==>|-\.->|---)\s*(?:\|\s*"([^"]*)"\s*\|)?|-\.\s*"([^"]*)"\s*\.->|--\s*"([^"]*)"\s*-->|==\s*"([^"]*)"\s*==>)'
 EDGE_RX = re.compile(r'(\w+)\s*' + ARROW + r'\s*(?=(\w+))')
-BOUNDARY_LABEL_RX = re.compile(
-    r"^<span style='display:inline-block;width:(\d+)px;text-align:left'>([^<>\[\]]+)<br/>\[([A-Z ]+)\]</span>$"
-)
+BOUNDARY_TITLE_RX = re.compile(r"^[^<>\[\]]+$")
+BOUNDARY_ROW_RX = re.compile(r"^(.+?) \[([A-Z ]+)\]$")
+HTML_TAG_RX = re.compile(r"<(?!br/>)/?[a-zA-Z][^>]*>")
+# A label that opens like a Markdown block. Mermaid 11 parses labels as
+# Markdown, and several releases draw 'Unsupported markdown: list' instead.
+MARKDOWN_LABEL_RX = re.compile(r"^\s*(?:\d+[.)]|[-*+>]|#{1,6})\s")
+STEP_RX = re.compile(r"^\d+[a-z]?:\s")
+
+
+def check_portable(doc: Doc, line_no: int, body: list[str]) -> None:
+    """Syntax that one common viewer rejects, whatever the newest Mermaid accepts."""
+    for l in body:
+        s = l.strip()
+        tag = HTML_TAG_RX.search(s)
+        if tag:
+            doc.add(line_no, "MMD", f"'{tag.group(0)[:30]}' is not portable; '<br/>' is the only HTML a label may hold")
+        if "`" in s:
+            doc.add(line_no, "MMD", f"Markdown string labels are not portable: '{s[:40]}'")
+        if re.search(r"-{4,}>|={4,}>|-\.{2,}->", s):
+            doc.add(line_no, "MMD", f"long arrows are not portable; use '-->': '{s[:40]}'")
+        labels = re.findall(r'"([^"]*)"', s)
+        message = re.match(r"^\w+\s*-{1,2}(?:>>?|x|\))\s*\w+\s*:\s*(.*)$", s)
+        if message:
+            labels.append(message.group(1))
+        for label in labels:
+            if MARKDOWN_LABEL_RX.match(label):
+                doc.add(line_no, "MMD", f"label opens like a Markdown list or heading: '{label[:40]}'; write step numbers as '1: text'")
 
 
 def flowchart_family(body: list[str]) -> str:
@@ -574,9 +618,10 @@ def flowchart_family(body: list[str]) -> str:
     return "application"
 
 
-def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tuple[list[str], list[tuple[str, str, str]]]:
+def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tuple[list[str], list[tuple[str, str, str]], list[str]]:
     nodes: dict[str, str] = {}
     edges: list[tuple[str, str]] = []
+    boundaries: dict[str, str] = {}
     opened: str | None = None
     for l in body:
         s = l.strip()
@@ -584,21 +629,17 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tup
             doc.add(line_no, "MMD", f"boundary '{opened}' must declare 'direction TB' on its first line")
         was_opened, opened = opened, None
         if s.startswith("subgraph"):
-            subgraph_match = re.match(r'^subgraph\s+\w+\["([^"]+)"\]', s)
+            subgraph_match = re.match(r'^subgraph\s+(\w+)\["([^"]+)"\]$', s)
             if not subgraph_match:
                 doc.add(line_no, "MMD", f"subgraph needs an id and a quoted label: '{s}'")
                 continue
-            opened = subgraph_match.group(1)
-            boundary_match = BOUNDARY_LABEL_RX.match(opened)
-            if not boundary_match:
-                doc.add(line_no, "MMD", f"boundary label must be the left-aligned 'Name<br/>[TYPE]' span from the mermaid reference: '{opened[:50]}'")
+            ident, opened = subgraph_match.groups()
+            if not BOUNDARY_TITLE_RX.match(opened):
+                doc.add(line_no, "MMD", f"boundary title is the plain name on one line; its [TYPE] goes in the Node table: '{opened[:50]}'")
                 continue
-            width, name, boundary_type = boundary_match.groups()
-            opened = name
-            if int(width) not in BOUNDARY_WIDTHS:
-                doc.add(line_no, "MMD", f"boundary '{name}' width {width} is not 480, 720, or 960; pick by nodes abreast")
-            if boundary_type not in BOUNDARY_TYPES:
-                doc.add(line_no, "MMD", f"unknown boundary TYPE '{boundary_type}' in '{name}'")
+            if len(opened) > BOUNDARY_TITLE_MAX:
+                doc.add(line_no, "MMD", f"boundary title '{opened}' exceeds {BOUNDARY_TITLE_MAX} characters; a longer title wraps behind the first node")
+            boundaries[ident] = opened
             continue
         if s in ("end",) or s.startswith("direction"):
             if s.startswith("direction") and (s != "direction TB" or was_opened is None):
@@ -616,7 +657,7 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tup
                 doc.add(line_no, "MMD", f"unknown TYPE '{typ}' in node '{title}'")
             if family == "infrastructure" and typ in {"SYSTEM", "SERVICE", "DATABASE"}:
                 doc.add(line_no, "MMD", f"infrastructure node '{title}' uses generic TYPE '{typ}'; name the platform service")
-            if re.match(r"^\d+[a-z]?\.\s", title):
+            if re.match(r"^\d+[a-z]?[.:]\s", title):
                 doc.add(line_no, "MMD", f"node title carries a number: '{title}'; numbers belong on edges")
             if len(title.split()) > 4:
                 doc.add(line_no, "MMD", f"node title longer than three or four words: '{title}'")
@@ -626,10 +667,13 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tup
             src, dst = em.group(1), em.group(6)
             label = next((g for g in em.groups()[1:5] if g is not None), None)
             edges.append((src, dst))
+            for end in (src, dst):
+                if end in boundaries:
+                    doc.add(line_no, "MMD", f"edge {src} -> {dst} links boundary '{boundaries[end]}'; link the nodes inside it, since Azure DevOps rejects subgraph links")
             if label is None:
                 doc.add(line_no, "MMD", f"edge {src} -> {dst} has no label")
             else:
-                words = re.sub(r"^\d+\.\s*", "", label).split()
+                words = STEP_RX.sub("", label).split()
                 if len(words) > 4:
                     doc.add(line_no, "MMD", f"edge label longer than four words: '{label}'")
     count = len(nodes)
@@ -652,7 +696,7 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tup
             stack.extend(adj.get(n, ()))
         if not set(nodes) <= seen:
             doc.add(line_no, "MMD", "diagram holds more than one disconnected graph; split it")
-    return list(nodes.values()), [(nodes.get(a, a), nodes.get(c, c), "") for a, c in edges]
+    return list(nodes.values()), [(nodes.get(a, a), nodes.get(c, c), "") for a, c in edges], list(boundaries.values())
 
 
 def check_er_diagram(doc: Doc, line_no: int, body: list[str]) -> tuple[list[str], list[tuple[str, str, str]]]:
@@ -700,7 +744,7 @@ def check_sequence(doc: Doc, line_no: int, body: list[str]) -> tuple[list[str], 
             title, typ = lm.group(1).strip(), lm.group(2).strip()
             if typ not in MERMAID_TYPES:
                 doc.add(line_no, "MMD", f"unknown TYPE '{typ}' in participant '{title}'")
-            if re.match(r"^\d+\.\s", title):
+            if re.match(r"^\d+[.:]\s", title):
                 doc.add(line_no, "MMD", f"participant carries an ordinal prefix: '{title}'; number messages, not participants")
             if kw == "actor":
                 doc.add(line_no, "MMD", f"'{title}': use 'participant' for every TYPE; an actor figure collides with its two-line label")
@@ -711,9 +755,9 @@ def check_sequence(doc: Doc, line_no: int, body: list[str]) -> tuple[list[str], 
         if mm:
             messages += 1
             src, dst, text = mm.groups()
-            if not re.match(r"^\d+\.\s", text):
-                doc.add(line_no, "MMD", f"sequence message is not numbered: '{text[:40]}'")
-            action = re.sub(r"^\d+\.\s*", "", text).strip().lower()
+            if not STEP_RX.match(text):
+                doc.add(line_no, "MMD", f"sequence message is not numbered '1: text': '{text[:40]}'")
+            action = re.sub(r"^\d+[a-z]?[.:]\s*", "", text).strip().lower()
             edges.append((idents.get(src, src), idents.get(dst, dst), action))
     if len(titles) > 7:
         doc.add(line_no, "MMD", f"{len(titles)} participants exceeds the cap of 7; split the flow")
@@ -887,6 +931,27 @@ def expand_scope(paths: list[str]) -> list[str]:
 SENTENCE_SETS: dict[str, list[tuple[int, str, frozenset[str]]]] = {}
 
 
+def adr_status(lines: list[str]) -> str | None:
+    """Return the ADR's status word from a status table, a 'Status:' line, or a Status section."""
+    for i, line in enumerate(lines):
+        if re.match(r"^\|\s*status\s*\|", line, re.I):
+            candidates = lines[i + 2:i + 3]
+        elif STATUS_LINE_RX.match(line):
+            candidates = [line.split(":", 1)[1]]
+        elif re.match(r"^#{2,6}\s+status\s*$", line, re.I):
+            rest = lines[i + 1:]
+            stop = next((n for n, text in enumerate(rest) if heading_level(text)), len(rest))
+            candidates = rest[:stop]
+        else:
+            continue
+        for text in candidates:
+            found = STATUS_WORD_RX.search(text)
+            if found:
+                return found.group(1).lower()
+        return None
+    return None
+
+
 def lint_file(path: str, root: str, forced: str | None, heading_cache: dict[str, list[str]]) -> Doc:
     with open(path, encoding="utf-8") as fh:
         lines = fh.read().splitlines()
@@ -895,6 +960,7 @@ def lint_file(path: str, root: str, forced: str | None, heading_cache: dict[str,
     check_header(doc, blocks, forced)
     if doc.doc_type is None:
         doc.doc_type = guess_type(path, root)
+    doc.settled = doc.doc_type == "adr" and adr_status(lines) in SETTLED_STATUSES
     check_title(doc, blocks)
     check_headings(doc, blocks)
     check_toc(doc, blocks)
@@ -930,7 +996,8 @@ def main(argv: list[str]) -> int:
     primary = {os.path.abspath(d.path) for d in docs}
     scope = [lint_file(p, root, None, cache) for p in expand_scope(args.dup_scope) if os.path.abspath(p) not in primary]
     # Scope files go first so they own a shared fact and the finding lands on the file being linted.
-    everyone = scope + docs
+    # A settled ADR cannot be reworded, so it owns a shared fact ahead of every editable file.
+    everyone = scope + sorted(docs, key=lambda d: not d.settled)
     if len(everyone) > 1 and not args.no_dup:
         check_duplicates(everyone)
         check_near_duplicates(everyone, SENTENCE_SETS)
@@ -939,6 +1006,8 @@ def main(argv: list[str]) -> int:
     total = 0
     for d in docs:
         for f in sorted(d.findings, key=lambda x: (x.line, x.code)):
+            if d.settled and f.code not in SETTLED_ADR_CODES:
+                continue
             print(f)
             total += 1
     print(f"{total} finding(s) in {len(docs)} file(s)")

@@ -7,11 +7,18 @@ Type: explanation
 
 Audience: maintainers, to see one rule fail.
 
-The boundary has no title margin.
+The block opens with configuration instead of the diagram type.
 
 ```mermaid
-flowchart TD
-  subgraph App["<span style='display:inline-block;width:480px;text-align:left'>Application<br/>[DEPLOYMENT]</span>"]
+---
+config:
+  flowchart:
+    subGraphTitleMargin:
+      top: 4
+      bottom: 32
+---
+graph TD
+  subgraph App["Application"]
     direction TB
     One["One<br/>[SERVICE]"]
     Two["Two<br/>[SERVICE]"]
@@ -25,6 +32,7 @@ flowchart TD
 
 | Node | Source |
 | --- | --- |
+| Application [DEPLOYMENT] | - |
 | One | - |
 | Two | - |
 | Three | - |

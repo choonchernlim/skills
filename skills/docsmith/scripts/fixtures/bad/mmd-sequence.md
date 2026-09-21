@@ -18,7 +18,7 @@ sequenceDiagram
   participant Route as Order API<br/>[API]
 
   Customer->>Browser: Submit the cart
-  Browser->>Route: 2. Create the order
+  Browser->>Route: 2: Create the order
 ```
 
 | Node | Source |

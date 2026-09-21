@@ -10,7 +10,7 @@ Audience: maintainers, to see one rule fail.
 A second file draws it again.
 
 ```mermaid
-flowchart TD
+graph TD
   Alpha["Alpha<br/>[SERVICE]"]
   Beta["Beta<br/>[SERVICE]"]
   Kappa["Kappa<br/>[SERVICE]"]

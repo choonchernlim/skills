@@ -119,6 +119,7 @@ CODES = {
     "INS-LONG": ("med", "S", "instruction-files", "instruction file is over budget"),
     "SKILL-DUP": ("med", "S/D", "context-diet", "skill is copied into both agent trees"),
     "SKILL-LINK": ("med", "D", "context-diet", "skill trees are not one copy plus relative links"),
+    "SKILL-DEAD": ("low", "D", "context-diet", "skill link points at nothing"),
     "SKILL-BUDGET": ("med", "S/M", "context-diet", "too much skill listing at one scope"),
     "SKILL-DESC": ("low", "S", "context-diet", "skill description is too long"),
     "DENY-MISSING": ("high", "R/XL", "context-diet", "costly file has no Claude read deny"),
@@ -805,6 +806,8 @@ class Audit:
                 entry = os.path.join(linked, name)
                 if in_shared and in_linked and not os.path.islink(entry):
                     self.add("SKILL-DUP", f"{label}/.claude/skills/{name}", "second real copy; replace it with a relative link to .agents/skills")
+                elif in_linked and not in_shared and os.path.islink(entry) and not os.path.exists(entry):
+                    self.add("SKILL-DEAD", f"{label}/.claude/skills/{name}", "link target is gone; repoint it at the renamed skill, or delete the link")
                 elif in_shared != in_linked:
                     missing = "Claude Code" if in_shared else "Codex"
                     self.add("SKILL-LINK", f"{label}/{'.agents' if in_shared else '.claude'}/skills/{name}", f"{missing} cannot see this skill")

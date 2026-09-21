@@ -10,7 +10,7 @@ Audience: maintainers, to see one rule fail.
 The same title points at a file here.
 
 ```mermaid
-flowchart TD
+graph TD
   Omega["Omega<br/>[SERVICE]"]
   Phi["Phi<br/>[SERVICE]"]
   Chi["Chi<br/>[SERVICE]"]

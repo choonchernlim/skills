@@ -3,21 +3,19 @@ Purpose: Fixture.
 Type: explanation
 -->
 
-# Boundary Sideways
+# Directive
 
 Audience: maintainers, to see one rule fail.
 
-The boundary runs left to right.
+The block opens with an init directive instead of the diagram type.
 
 ```mermaid
+%%{init: {'theme': 'neutral'}}%%
 graph TD
-  subgraph App["Application"]
-    direction LR
-    One["One<br/>[SERVICE]"]
-    Two["Two<br/>[SERVICE]"]
-    Three["Three<br/>[SERVICE]"]
-    Four["Four<br/>[SERVICE]"]
-  end
+  One["One<br/>[SERVICE]"]
+  Two["Two<br/>[SERVICE]"]
+  Three["Three<br/>[SERVICE]"]
+  Four["Four<br/>[SERVICE]"]
   One -->|"calls"| Two
   Two -->|"calls"| Three
   Three -->|"calls"| Four
@@ -25,7 +23,6 @@ graph TD
 
 | Node | Source |
 | --- | --- |
-| Application [DEPLOYMENT] | - |
 | One | - |
 | Two | - |
 | Three | - |

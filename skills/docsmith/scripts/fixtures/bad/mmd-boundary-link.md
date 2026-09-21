@@ -3,16 +3,16 @@ Purpose: Fixture.
 Type: explanation
 -->
 
-# Boundary Sideways
+# Boundary Link
 
 Audience: maintainers, to see one rule fail.
 
-The boundary runs left to right.
+An edge ends on the boundary instead of a node inside it.
 
 ```mermaid
 graph TD
   subgraph App["Application"]
-    direction LR
+    direction TB
     One["One<br/>[SERVICE]"]
     Two["Two<br/>[SERVICE]"]
     Three["Three<br/>[SERVICE]"]
@@ -21,6 +21,7 @@ graph TD
   One -->|"calls"| Two
   Two -->|"calls"| Three
   Three -->|"calls"| Four
+  Four -->|"reports to"| App
 ```
 
 | Node | Source |

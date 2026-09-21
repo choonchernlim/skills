@@ -68,7 +68,8 @@ Then produce two artifacts and show both in the handoff:
   viewpoint file draws its own family, and a topic guide draws the zoom-in.
 - Use glossary terms as the only names for domain concepts. If a term is
   missing, add it to the glossary in the same change.
-- Every diagram uses the one block from the mermaid reference.
+- Every diagram uses the one block and only the portable syntax from the
+  mermaid reference, so it renders in an IDE, GitHub, and Azure DevOps.
 - A touched file is converted to house style in full. Untouched files are
   left alone, even when they disagree with these rules.
 
@@ -84,6 +85,7 @@ Run every check on the final text of every touched file.
    ```
 
 2. **Render every Mermaid block and inspect each image**, per the mermaid reference.
+   The render proves layout only. The lint proves the syntax is portable.
 
    ```bash
    python3 scripts/render_mermaid.py docs/*.md README.md

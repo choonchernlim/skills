@@ -7,17 +7,10 @@ Type: explanation
 
 Audience: maintainers, to see one rule fail.
 
-The boundary label is plain centered text.
+The boundary title carries its type.
 
 ```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      top: 4
-      bottom: 32
----
-flowchart TD
+graph TD
   subgraph App["Application [DEPLOYMENT]"]
     direction TB
     One["One<br/>[SERVICE]"]

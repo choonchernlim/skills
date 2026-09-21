@@ -18,10 +18,10 @@ sequenceDiagram
   participant Route as Order API<br/>[API]
   participant Inventory as Inventory Client<br/>[SERVICE]
 
-  Customer->>Browser: 1. Submit the cart
-  Browser->>Route: 2. Create the order
-  Route->>Inventory: 3. Reserve stock
-  Inventory-->>Route: 4. Confirm the reservation
+  Customer->>Browser: 1: Submit the cart
+  Browser->>Route: 2: Create the order
+  Route->>Inventory: 3: Reserve stock
+  Inventory-->>Route: 4: Confirm the reservation
 ```
 
 1. The customer submits the current cart.

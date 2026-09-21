@@ -14,7 +14,7 @@ use `actor`: its figure collides with a two-line label.
 ## Participants and Messages
 
 Use the application node vocabulary. Label every participant as
-`Title<br/>[TYPE]`. Number every message and keep its text to one action.
+`Title<br/>[TYPE]`. Number every message as `1: text` and keep its text to one action.
 
 - Solid arrows are calls or commands.
 - Dashed arrows are responses.

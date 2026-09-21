@@ -3,22 +3,15 @@ Purpose: Fixture.
 Type: explanation
 -->
 
-# Frontmatter Changed
+# Boundary Table
 
 Audience: maintainers, to see one rule fail.
 
-The title margin was tuned by hand.
+The Node table never states the boundary type.
 
 ```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      top: 4
-      bottom: 40
----
-flowchart TD
-  subgraph App["<span style='display:inline-block;width:480px;text-align:left'>Application<br/>[DEPLOYMENT]</span>"]
+graph TD
+  subgraph App["Application"]
     direction TB
     One["One<br/>[SERVICE]"]
     Two["Two<br/>[SERVICE]"]

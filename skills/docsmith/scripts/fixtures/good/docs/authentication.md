@@ -19,12 +19,12 @@ sequenceDiagram
   participant Identity as Identity Provider<br/>[SYSTEM]
   participant Route as Order API<br/>[API]
 
-  Customer->>Browser: 1. Enter credentials
-  Browser->>Identity: 2. Request a token
-  Identity-->>Browser: 3. Issue the token
-  Browser->>Route: 4. Send the token
-  Route->>Identity: 5. Verify the token
-  Identity-->>Route: 6. Confirm the customer
+  Customer->>Browser: 1: Enter credentials
+  Browser->>Identity: 2: Request a token
+  Identity-->>Browser: 3: Issue the token
+  Browser->>Route: 4: Send the token
+  Route->>Identity: 5: Verify the token
+  Identity-->>Route: 6: Confirm the customer
 ```
 
 | Node | Source |

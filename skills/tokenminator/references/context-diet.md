@@ -28,6 +28,7 @@ by one careless read. This playbook removes both.
 | --- | --- |
 | `SKILL-DUP` | Replace the second copy with a relative link. |
 | `SKILL-LINK` | Give both agents the skill, through per-skill relative links. |
+| `SKILL-DEAD` | Repoint the link at the renamed skill, or delete the link. |
 | `SKILL-BUDGET` | Move skills to the folder they serve, or delete unused ones. |
 | `SKILL-DESC` | Shorten the description and lead with trigger words. |
 | `DENY-MISSING` | Add a `Read(...)` deny for the file. |

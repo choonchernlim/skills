@@ -15,7 +15,7 @@ the warehouse system before it stores each order.
 The shop sits between its customers and two outside systems.
 
 ```mermaid
-flowchart TD
+graph TD
   Customer["Customer<br/>[PERSON]"]
   Shop["Sample Shop<br/>[SYSTEM]"]
   Warehouse["Warehouse System<br/>[SYSTEM]"]

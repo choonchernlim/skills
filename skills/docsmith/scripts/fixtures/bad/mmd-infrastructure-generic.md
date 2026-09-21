@@ -10,7 +10,7 @@ Audience: maintainers, to see a generic platform type fail.
 The infrastructure diagram hides one deployed technology behind a generic label.
 
 ```mermaid
-flowchart TD
+graph TD
   Project["Project<br/>[GCP PROJECT]"]
   App["Application<br/>[SYSTEM]"]
   Job["Migrator<br/>[CLOUD RUN JOB]"]

@@ -7,7 +7,7 @@ Type: reference
 
 Audience: the writer, when a reader needs application structure rather than request order.
 
-Use `flowchart TD`. Show components at one abstraction level. A deployable
+Use `graph TD`. Show components at one abstraction level. A deployable
 service, in-process module, API boundary, and stored payload belong together
 only when their dependency is the point of the diagram.
 
@@ -15,13 +15,13 @@ only when their dependency is the point of the diagram.
 
 | Element | Rule |
 | --- | --- |
-| Type | `flowchart TD` for static structure. |
+| Type | `graph TD` for static structure. |
 | Node label | `Title<br/>[TYPE]`, quoted. Title is one to three words; TYPE is from the closed list below. |
 | Shape | Chosen by TYPE: `id["..."]` rectangle, `id[("...")]` cylinder, `id[/"..."/]` parallelogram. |
 | Subgraph | A real typed boundary in the shared [boundary format](mermaid.md#boundaries). |
 | Edge label | Required on every edge, one to four words, a verb: `-->\|"validates"\|`. |
-| Step numbers | Prefix edge labels `1.`, `2.` when the diagram is a flow. Numbers mean order, never ownership. |
-| Forbidden | `click`, horizontal flowcharts, decorative subgraphs, and ASCII diagrams. |
+| Step numbers | Prefix edge labels `1:`, `2:` when the diagram is a flow. Numbers mean order, never ownership. |
+| Forbidden | `click`, horizontal flowcharts, decorative subgraphs, ASCII diagrams, and anything outside the [portable syntax](mermaid.md#portable-syntax). |
 
 | TYPE | Means | Shape |
 | --- | --- | --- |
@@ -52,21 +52,14 @@ The block below is copied verbatim into a document, with real paths.
 The order API checks inventory before it stores the order.
 
 ```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      top: 4
-      bottom: 32
----
-flowchart TD
-  subgraph Web["<span style='display:inline-block;width:480px;text-align:left'>Web App<br/>[DEPLOYMENT]</span>"]
+graph TD
+  subgraph Web["Web App"]
     direction TB
     Browser["Storefront UI<br/>[UI]"]
     Route[/"Order API<br/>[API]"/]
   end
 
-  subgraph Orders["<span style='display:inline-block;width:480px;text-align:left'>Order Service<br/>[DEPLOYMENT]</span>"]
+  subgraph Orders["Order Service"]
     direction TB
     Inventory["Inventory Client<br/>[SERVICE]"]
     Store[("Order Store<br/>[DATABASE]")]
@@ -74,10 +67,10 @@ flowchart TD
 
   Warehouse["Warehouse System<br/>[SYSTEM]"]
 
-  Browser -->|"1. submits order"| Route
-  Route -->|"2. checks stock"| Inventory
+  Browser -->|"1: submits order"| Route
+  Route -->|"2: checks stock"| Inventory
   Inventory -->|"queries"| Warehouse
-  Route -->|"3. stores order"| Store
+  Route -->|"3: stores order"| Store
 ```
 
 1. The browser submits the customer's order.
@@ -86,6 +79,8 @@ flowchart TD
 
 | Node | Source |
 | --- | --- |
+| Web App [DEPLOYMENT] | - |
+| Order Service [DEPLOYMENT] | - |
 | Storefront UI | [src/web/](../src/web/) |
 | Order API | [orders.ts](../src/api/orders.ts) |
 | Inventory Client | [inventory.py](../src/inventory/client.py) |

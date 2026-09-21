@@ -12,7 +12,7 @@ Audience: nobody.
 Lead.
 
 ```mermaid
-flowchart TD
+graph TD
   A["One<br/>[UI]"] -->|"calls"| B["Two<br/>[API]"]
 ```
 

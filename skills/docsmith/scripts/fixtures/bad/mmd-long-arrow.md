@@ -3,28 +3,21 @@ Purpose: Fixture.
 Type: explanation
 -->
 
-# Frontmatter Stray
+# Long Arrow
 
 Audience: maintainers, to see one rule fail.
 
-No boundary needs the margin here.
+One edge uses a lengthened arrow.
 
 ```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      top: 4
-      bottom: 32
----
-flowchart TD
+graph TD
   One["One<br/>[SERVICE]"]
   Two["Two<br/>[SERVICE]"]
   Three["Three<br/>[SERVICE]"]
   Four["Four<br/>[SERVICE]"]
   One -->|"calls"| Two
   Two -->|"calls"| Three
-  Three -->|"calls"| Four
+  Three ---->|"calls"| Four
 ```
 
 | Node | Source |

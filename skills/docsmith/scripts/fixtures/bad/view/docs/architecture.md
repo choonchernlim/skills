@@ -13,7 +13,7 @@ The owner file holds another family.
 sequenceDiagram
   participant Customer as Customer<br/>[PERSON]
   participant Route as Order API<br/>[API]
-  Customer->>Route: 1. Create the order
+  Customer->>Route: 1: Create the order
 ```
 
 | Node | Source |

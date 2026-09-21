@@ -41,7 +41,7 @@ EXPECTED: dict[str, tuple[list[str], set[str]]] = {
     "rules-malformed": ([], {"RULES-EDITED"}),
     "skills": (
         ["--limit", "rootchars=50", "--limit", "desc=40"],
-        {"SKILL-DUP", "SKILL-LINK", "SKILL-BUDGET", "SKILL-DESC"},
+        {"SKILL-DUP", "SKILL-LINK", "SKILL-DEAD", "SKILL-BUDGET", "SKILL-DESC"},
     ),
     "deny": (SMALL, {"DENY-DEAD", "DENY-SEARCH", "DNR-UNLISTED", "CFG-PARSE"}),
     "caps": (["--limit", "source=100"], {"CFG-CAP", "SRC-LARGE"}),

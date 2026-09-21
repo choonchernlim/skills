@@ -13,20 +13,13 @@ Two teams ship independently, and only a versioned contract crosses the line
 between them.
 
 ```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      top: 4
-      bottom: 32
----
-flowchart TD
-  subgraph Web["<span style='display:inline-block;width:480px;text-align:left'>Web Team<br/>[DEPLOYMENT]</span>"]
+graph TD
+  subgraph Web["Web Team"]
     direction TB
     Browser["Storefront UI<br/>[UI]"]
   end
 
-  subgraph Orders["<span style='display:inline-block;width:480px;text-align:left'>Order Team<br/>[DEPLOYMENT]</span>"]
+  subgraph Orders["Order Team"]
     direction TB
     Route[/"Order API<br/>[API]"/]
     Inventory["Inventory Client<br/>[SERVICE]"]
@@ -45,6 +38,8 @@ flowchart TD
 
 | Node | Source |
 | --- | --- |
+| Web Team [DEPLOYMENT] | - |
+| Order Team [DEPLOYMENT] | - |
 | Storefront UI | [../src/](../src/) |
 | Order API | [../src/api.ts](../src/api.ts) |
 | Inventory Client | [../src/inventory/client.ts](../src/inventory/client.ts) |

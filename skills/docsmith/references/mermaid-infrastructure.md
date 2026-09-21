@@ -7,7 +7,7 @@ Type: reference
 
 Audience: the writer, when a reader needs provisioning ownership and deployed resource topology.
 
-Use `flowchart TD`. Read from foundation and shared services at the top to
+Use `graph TD`. Read from foundation and shared services at the top to
 workloads and state below. Show repository provisioning boundaries before
 resource detail when several repositories manage one environment.
 
@@ -22,21 +22,14 @@ The example applies the shared [boundary format](mermaid.md#boundaries):
 The foundation repository provisions the network and secrets that the payments workload consumes.
 
 ```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      top: 4
-      bottom: 32
----
-flowchart TD
-  subgraph Foundation["<span style='display:inline-block;width:480px;text-align:left'>platform-foundation<br/>[REPO]</span>"]
+graph TD
+  subgraph Foundation["platform-foundation"]
     direction TB
     Network["Shared Network<br/>[VPC]"]
     Secrets["Payment Secrets<br/>[SECRET MANAGER]"]
   end
 
-  subgraph Payments["<span style='display:inline-block;width:480px;text-align:left'>payments-infra<br/>[REPO]</span>"]
+  subgraph Payments["payments-infra"]
     direction TB
     Service["Payments API<br/>[CLOUD RUN]"]
     Store[("Payments Database<br/>[POSTGRES]")]
@@ -49,6 +42,8 @@ flowchart TD
 
 | Node | Source |
 | --- | --- |
+| platform-foundation [REPO] | - |
+| payments-infra [REPO] | - |
 | Shared Network | [network.tf](../foundation/network.tf) |
 | Payment Secrets | [secrets.tf](../foundation/secrets.tf) |
 | Payments API | [service.tf](../infra/service.tf) |

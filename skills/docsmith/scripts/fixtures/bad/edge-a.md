@@ -10,7 +10,7 @@ Audience: maintainers, to see one rule fail.
 The first file owns the relationship.
 
 ```mermaid
-flowchart TD
+graph TD
   Alpha["Alpha<br/>[SERVICE]"]
   Beta["Beta<br/>[SERVICE]"]
   Gamma["Gamma<br/>[SERVICE]"]

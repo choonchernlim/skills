@@ -55,7 +55,8 @@ Use the same block in `.claude/settings.json` and `.codex/hooks.json`:
 }
 ```
 
-Codex runs project hooks only after the project is trusted.
+Codex runs a project hook only after the project is trusted and the user
+approves that exact hook with `/hooks`. Approve it again after each change.
 
 ## Rules for the Script
 

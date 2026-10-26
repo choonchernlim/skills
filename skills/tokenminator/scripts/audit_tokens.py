@@ -19,6 +19,7 @@ import fnmatch
 import glob
 import json
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -105,7 +106,7 @@ LIMITS = {
 CODES = {
     "CFG-PARSE": ("high", "D", "context-diet", "agent config file is not valid JSON"),
     "AGT-MISSING": ("high", "S/M", "instruction-files", "no root AGENTS.md"),
-    "CLD-IMPORT": ("high", "S/L", "instruction-files", "CLAUDE.md does not bridge to AGENTS.md"),
+    "CLD-IMPORT": ("high", "S/L", "instruction-files", "a CLAUDE.md hides an AGENTS.md from Claude Code"),
     "CLD-FORK": ("low", "D", "instruction-files", "CLAUDE.md carries its own instructions"),
     "CLD-RULE": ("low", "S", "instruction-files", "Claude rule file loads in every session"),
     "CLD-COMPACT": ("low", "D/S", "instruction-files", "nothing tells compaction what to keep"),
@@ -147,9 +148,10 @@ CODES = {
     "TF-NOLINT": ("low", "L", "infrastructure", "Terraform has no tflint"),
     "FACT-STALE": ("note", "D", "claude-code", "stamped tool facts are old"),
     "USR-INS": ("med", "S", "user-scope", "user-level instruction file is over budget"),
+    "USR-HIDE": ("high", "S/L", "user-scope", "a Claude file above the repository hides its AGENTS.md"),
     "USR-SKILL-BUDGET": ("med", "S/M", "user-scope", "too much skill listing at the user scope"),
     "USR-SKILL-DESC": ("low", "S", "user-scope", "user-level skill description is too long"),
-    "USR-MCP": ("low", "S/M", "user-scope", "user-level MCP server loads every tool into every Codex session"),
+    "USR-MCP": ("low", "S/M", "user-scope", "user-level MCP server may load every tool into every Codex session"),
 }
 FAILING = {"high", "med", "low"}
 SEVERITY_ORDER = {"high": 0, "med": 1, "low": 2, "note": 3}
@@ -239,8 +241,13 @@ ORIENT_RE = re.compile(
     r"|orientation|codebase map)\b"
 )
 DNR_RE = re.compile(r"(?im)^##\s+(do not read|don't read|never read)\b")
-IMPORT_RE = re.compile(r"(?m)^@(\./)?AGENTS\.md\s*$")
+IMPORT_RE = re.compile(r"(?m)^@(\S+)\s*$")
 COMPACT_RE = re.compile(r"(?im)^##\s+compact instructions\b")
+# Shared Claude files that can import the AGENTS.md of their folder.
+CLAUDE_ENTRIES = ("CLAUDE.md", ".claude/CLAUDE.md")
+# Any of these in or above the launch folder makes Claude Code read CLAUDE.md files only,
+# so a repository with none needs no bridge, and one with any needs one per AGENTS.md.
+CLAUDE_FILES = CLAUDE_ENTRIES + ("CLAUDE.local.md",)
 RULE_FILE_RE = re.compile(r"(^|/)\.claude/rules/.+\.md$")
 FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---", re.S)
 SEARCH_IGNORE = ".ignore"  # ripgrep reads it, and both agents search with ripgrep
@@ -430,10 +437,15 @@ class Audit:
         self.instruction_cost: list[tuple[str, int]] = []  # root instruction files, measured tokens
         self.deny_wanted: list[str] = []  # `Read(...)` rules that DENY-MISSING asks for
         self.search_wanted: list[str] = []  # `.ignore` lines that DENY-SEARCH asks for
-        self.instruction_files = [
-            value for value in repo.files if value.rsplit("/", 1)[-1] == "AGENTS.md"
-        ]
+        self.instruction_files = repo.named("AGENTS.md")
         self.root_agents = repo.head("AGENTS.md") if "AGENTS.md" in repo.fileset else ""
+        # The walk reads the disk, so a git-ignored CLAUDE.local.md above an AGENTS.md counts too.
+        self.top, self.sample = self._project_top()
+        self.has_claude = any(repo.named(name) for name in ("CLAUDE.md", "CLAUDE.local.md")) or any(
+            _claude_files_above(os.path.dirname(os.path.realpath(repo.abs(agents))), self.top)
+            for agents in self.instruction_files
+        )
+        self.bridges = {agents: self._bridge(agents) for agents in self.instruction_files}
         self.candidates = self._costly_files()
         self.entry = find_entry(repo)
 
@@ -472,22 +484,22 @@ class Audit:
             )
             if "CLAUDE.md" in repo.fileset:
                 self.add("CLD-IMPORT", "CLAUDE.md", "instructions live in a Claude-only file, so Codex reads none of them")
-        for agents in self.instruction_files:
-            folder = agents.rsplit("/", 1)[0] + "/" if "/" in agents else ""
-            claude = folder + "CLAUDE.md"
-            if claude not in repo.fileset:
-                self.add("CLD-IMPORT", claude, f"missing; Claude Code does not load {agents} on its own")
-                continue
-            target = repo.abs(claude)
-            if os.path.islink(target) and os.path.basename(os.readlink(target)) == "AGENTS.md":
-                continue
-            text = repo.head(claude)
-            if not IMPORT_RE.search(text):
-                self.add("CLD-IMPORT", claude, "has no `@AGENTS.md` import line")
-                continue
-            extra = [line for line in text.splitlines() if line.strip() and not IMPORT_RE.match(line)]
-            if len(extra) > self.limits["fork"]:
-                self.add("CLD-FORK", claude, f"{len(extra)} lines beyond the import; move shared rules into AGENTS.md")
+        if self.has_claude:
+            for agents in self.instruction_files:
+                entry = self.bridges[agents]
+                if not entry:
+                    # A missing CLAUDE.md is the fix --fix can write, even beside a `.claude/CLAUDE.md`.
+                    claude = _sibling(agents, "CLAUDE.md")
+                    if os.path.lexists(repo.abs(claude)):
+                        self.add("CLD-IMPORT", claude, "has no `@AGENTS.md` import line")
+                    else:
+                        self.add("CLD-IMPORT", claude, f"missing; with a Claude file in the repository, Claude Code skips {agents}")
+                    continue
+                if os.path.islink(repo.abs(entry)):
+                    continue
+                extra = [line for line in repo.head(entry).splitlines() if line.strip() and _import_target(entry, line) != agents]
+                if len(extra) > self.limits["fork"]:
+                    self.add("CLD-FORK", entry, f"{len(extra)} lines beyond the import; move shared rules into AGENTS.md")
         for value in repo.files:
             if value.rsplit("/", 1)[-1] in ("AGENTS.md", "CLAUDE.md") and not os.path.islink(repo.abs(value)):
                 size = repo.size(value)
@@ -509,6 +521,34 @@ class Audit:
             self._check_sections()
         self._check_paths()
 
+    def _project_top(self) -> tuple[str, bool]:
+        """Where the project's own Claude files can sit: the git top level when the audited
+        root is a folder inside it, such as a monorepo package. A sample repository under a
+        fixtures folder stands alone, so the walk stops at its root and goes no higher."""
+        root = os.path.realpath(self.repo.root)
+        top = os.path.realpath(self.repo._git(["rev-parse", "--show-toplevel"]) or root)
+        if not root.startswith(top + os.sep):
+            return root, False
+        if FIXTURE_FOLDERS.intersection(os.path.relpath(root, top).split(os.sep)):
+            return root, True
+        return top, False
+
+    def _entries(self, agents: str) -> list[str]:
+        """The shared Claude files that exist beside `agents`."""
+        siblings = (_sibling(agents, name) for name in CLAUDE_ENTRIES)
+        return [entry for entry in siblings if os.path.lexists(self.repo.abs(entry))]
+
+    def _bridge(self, agents: str) -> str:
+        """The shared Claude file beside `agents` that imports or links to it, or ''."""
+        repo = self.repo
+        for entry in self._entries(agents):
+            path = repo.abs(entry)
+            if os.path.islink(path) and os.path.realpath(path) == os.path.realpath(repo.abs(agents)):
+                return entry
+            if any(_import_target(entry, line) == agents for line in repo.head(entry).splitlines()):
+                return entry
+        return ""
+
     def _check_claude_layer(self) -> None:
         """Claude-only text: rule files that load every session, and the compaction note."""
         repo = self.repo
@@ -525,10 +565,16 @@ class Audit:
                 "scope it, or move a shared rule into AGENTS.md",
                 before=size // 4,
             )
-        if "AGENTS.md" in repo.fileset and "CLAUDE.md" in repo.fileset:
-            if not COMPACT_RE.search(repo.head("CLAUDE.md")) and not COMPACT_RE.search(self.root_agents):
+        if "AGENTS.md" in repo.fileset:
+            texts = [self.root_agents] + [repo.head(name) for name in CLAUDE_ENTRIES]
+            if not any(COMPACT_RE.search(text) for text in texts):
+                # With no Claude file, Claude Code reads AGENTS.md, and a new CLAUDE.md would hide it.
+                if not self.has_claude:
+                    target = "AGENTS.md"
+                else:
+                    target = self.bridges["AGENTS.md"] or (self._entries("AGENTS.md") + ["CLAUDE.md"])[0]
                 self.add(
-                    "CLD-COMPACT", "CLAUDE.md",
+                    "CLD-COMPACT", target,
                     "add a short 'Compact Instructions' section, so a compacted session keeps the plan and the failing checks",
                 )
 
@@ -1081,6 +1127,7 @@ class Audit:
                     f"{size} bytes (~{size // 4} tokens in every session, in every repository); budget is {self.limits['ins']}",
                     before=size // 4, after=self.limits["ins"] // 4, owner=owner, fixable=fixable,
                 )
+        self._check_parent_claude()
         skills = self._user_skills(home)
         groups: dict[str, list[dict]] = {}
         for skill in skills:
@@ -1133,11 +1180,24 @@ class Audit:
                 owner, fixable = self._ownership(os.path.join(home, USER_MCP_TOML))
                 self.add(
                     "USR-MCP", "~/" + USER_MCP_TOML,
-                    f"{', '.join(unlisted)}: no `enabled_tools`, so every tool schema loads in every Codex session; "
+                    f"{', '.join(unlisted)}: no `enabled_tools`, so every tool schema may load in every Codex session; "
                     "list only the tools in use, or move the server into the project that needs it",
                     before=len(unlisted) * MCP_SERVER_TOKENS, after=len(unlisted) * MCP_TOOL_TOKENS * 3,
                     measured=False, owner=owner, fixable=fixable,
                 )
+
+    def _check_parent_claude(self) -> None:
+        """A Claude file in a folder above the repository hides its AGENTS.md."""
+        if self.has_claude or self.sample or not self.instruction_files:
+            return
+        for path in _claude_files_above(os.path.dirname(self.top)):
+            owner, fixable = self._ownership(path)
+            self.add(
+                "USR-HIDE", _tilde(path),
+                "Claude Code reads it, so it skips every AGENTS.md below; move its rules into "
+                "~/.claude/CLAUDE.md, or bridge each AGENTS.md with a CLAUDE.md",
+                owner=owner, fixable=fixable,
+            )
 
     def run(self, scopes: tuple[str, ...] = ("repo",), home: str = "") -> None:
         if "repo" in scopes:
@@ -1167,7 +1227,11 @@ def baseline_total(rows: list[dict]) -> int:
 
 def _tilde(path: str) -> str:
     home = os.path.expanduser("~")
-    return "~" + path[len(home):] if path == home or path.startswith(home + os.sep) else path
+    # Compare resolved paths too, so a home behind a link (/var -> /private/var) still shortens.
+    for base, value in ((home, path), (os.path.realpath(home), os.path.realpath(path))):
+        if value == base or value.startswith(base + os.sep):
+            return "~" + value[len(base):]
+    return path
 
 
 def _user_mcp_servers(home: str) -> tuple[list[str], dict[str, int]]:
@@ -1507,11 +1571,15 @@ def fix_mechanical(repo: Repo, audit: "Audit", findings: list[Finding], limits: 
     def bridge(path: str) -> str:
         if os.path.lexists(path):
             raise CannotRun("exists without an `@AGENTS.md` line; merge it by hand, it may carry its own rules")
-        _replace_file(path, "@AGENTS.md\n\n" + COMPACT_SECTION)
-        return "imports AGENTS.md and tells compaction what to keep"
+        _replace_file(path, "@AGENTS.md\n")
+        return "imports AGENTS.md"
 
     def compact(path: str) -> str:
-        _replace_file(path, _read(path).rstrip("\n") + "\n\n" + COMPACT_SECTION)
+        if not os.path.isfile(path):
+            # A new CLAUDE.md holding only the note would hide AGENTS.md from Claude Code.
+            raise CannotRun("missing; bridge it to AGENTS.md first")
+        text, newline = _read_with_newline(path)
+        _replace_file(path, text.rstrip("\r\n") + newline * 2 + COMPACT_SECTION.replace("\n", newline))
         return "added Compact Instructions"
 
     def search_ignore(path: str) -> str:
@@ -1527,8 +1595,9 @@ def fix_mechanical(repo: Repo, audit: "Audit", findings: list[Finding], limits: 
     for code, relative in sorted(open_codes):
         if code == "CLD-IMPORT" and relative.endswith("CLAUDE.md") and (relative[: -len("CLAUDE.md")] + "AGENTS.md") in repo.fileset:
             attempt(relative, bridge)
-    if ("CLD-COMPACT", "CLAUDE.md") in open_codes:
-        attempt("CLAUDE.md", compact)
+    # After the bridges, so a CLAUDE.md the bridge just wrote gets the note.
+    for relative in sorted(relative for code, relative in open_codes if code == "CLD-COMPACT"):
+        attempt(relative, compact)
     if "DENY-SEARCH" in codes and audit.search_wanted:
         attempt(SEARCH_IGNORE, search_ignore)
     if codes & {"RULES-MISSING", "RULES-OUTDATED", "RULES-EDITED"} or (done and "AGENTS.md" in repo.fileset):
@@ -1545,9 +1614,7 @@ def fix_rules_block(repo: Repo) -> str:
     if not os.path.isfile(os.path.join(repo.root, "AGENTS.md")):
         raise CannotRun("no root AGENTS.md to hold the rules block; create it first")
     path = guarded(repo, "AGENTS.md")
-    with open(path, encoding="utf-8", newline="") as source:
-        original = source.read()
-    newline = "\r\n" if "\r\n" in original else "\n"
+    original, newline = _read_with_newline(path)
     text = original.replace("\r\n", "\n")
     begins = list(RULES_BEGIN_RE.finditer(text))
     ends = [match for match in re.finditer(RULES_END_RE.pattern + r"\n?", text)]
@@ -1606,6 +1673,35 @@ RULES_SPAN_RE = re.compile(
     RULES_BEGIN_RE.pattern + rf".*?{RULES_END_RE.pattern}\n?", re.S
 )
 HEADING_RE = re.compile(r"^#{1,3} ")
+
+
+def _sibling(path: str, name: str) -> str:
+    return posixpath.join(posixpath.dirname(path), name)
+
+
+def _claude_files_above(folder: str, stop: str = "") -> list[str]:
+    """Claude files on disk in `folder` and each folder above it, up to `stop` or the
+    filesystem root. `~/.claude/CLAUDE.md` is the user's global file and does not count."""
+    found, global_file = [], os.path.realpath(os.path.join(os.path.expanduser("~"), ".claude", "CLAUDE.md"))
+    while True:
+        paths = (os.path.join(folder, name) for name in CLAUDE_FILES)
+        found += [path for path in paths if os.path.lexists(path) and os.path.realpath(path) != global_file]
+        if folder == stop or os.path.dirname(folder) == folder:
+            return found
+        folder = os.path.dirname(folder)
+
+
+def _read_with_newline(path: str) -> tuple[str, str]:
+    """The text as stored, and the line ending a write should keep."""
+    with open(path, encoding="utf-8", newline="") as source:
+        text = source.read()
+    return text, "\r\n" if "\r\n" in text else "\n"
+
+
+def _import_target(entry: str, line: str) -> str:
+    """The repository path an `@path` line in `entry` imports, resolved against its folder, or ''."""
+    match = IMPORT_RE.match(line)
+    return posixpath.normpath(posixpath.join(posixpath.dirname(entry), match.group(1))) if match else ""
 
 
 def _managed_bytes(text: str) -> int:
@@ -1823,8 +1919,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fix-rules-block", action="store_true")
     parser.add_argument(
         "--fix", action="store_true",
-        help="apply every fix that needs no judgement (output caps, the CLAUDE.md bridge and compaction "
-             "note, read denies, search ignores, the rules block), then re-audit in brief",
+        help="apply every fix that needs no judgement (output caps, a CLAUDE.md bridge where a Claude file "
+             "hides AGENTS.md, the compaction note, read denies, search ignores, the rules block), then re-audit in brief",
     )
     parser.add_argument(
         "--print-rules-block", nargs="?", const="repo", choices=("repo", "full"),

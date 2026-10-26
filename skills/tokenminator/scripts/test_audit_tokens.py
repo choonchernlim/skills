@@ -35,6 +35,8 @@ EXPECTED: dict[str, tuple[list[str], set[str]]] = {
         {"RULES-MISSING", "ORIENT-MISSING", "DNR-MISSING", "PATH-DEAD", "CLD-FORK", "CLD-RULE",
          "CLD-COMPACT", "INS-LONG"},
     ),
+    "agents-only": ([], {"CLD-COMPACT"}),
+    "mixed": ([], {"CLD-IMPORT"}),
     "rules-outdated": ([], {"RULES-OUTDATED"}),
     "rules-legacy": ([], {"RULES-OUTDATED"}),
     "rules-edited": ([], {"RULES-EDITED"}),
@@ -116,6 +118,12 @@ def findings(root: str, *extra: str) -> dict[str, dict]:
     return {finding["code"]: finding for finding in json.loads(out)["findings"]}
 
 
+def paths(root: str, code: str, *extra: str) -> list[str]:
+    """Every path one code is raised on; `findings` keeps one finding per code."""
+    _, out, _ = run(root, "--format", "json", "--today", TODAY, *extra)
+    return sorted(finding["path"] for finding in json.loads(out)["findings"] if finding["code"] == code)
+
+
 def user_cases() -> tuple[list[str], set[str]]:
     """The user scope reads a home folder, names the real owner, and never writes."""
     failures: list[str] = []
@@ -184,6 +192,26 @@ def user_cases() -> tuple[list[str], set[str]]:
             failures.append("user scope: --user with --fix-rules-block should exit 2")
         if before != after:
             failures.append("user scope: the audit changed files; it must only read")
+
+    # A Claude file in a folder above the repository hides its AGENTS.md; the global
+    # `~/.claude/CLAUDE.md` does not, and a bridged repository is not affected.
+    with tempfile.TemporaryDirectory() as home:
+        work = os.path.join(home, "code", "repo")
+        write(work, "AGENTS.md", "# Project\n")
+        write(home, "code/CLAUDE.md", "Folder notes.\n")
+        write(home, ".claude/CLAUDE.md", "Global notes.\n")
+        HOME[0] = home
+        try:
+            hidden = paths(work, "USR-HIDE")
+            write(work, "CLAUDE.md", "@AGENTS.md\n")
+            bridged = paths(work, "USR-HIDE")
+        finally:
+            HOME[0] = empty
+        # Folders above the scratch home are the machine's, so only paths under home are checked.
+        hidden = [path for path in hidden if path.startswith("~/")]
+        if hidden != ["~/code/CLAUDE.md"] or bridged:
+            failures.append(f"user scope: only a parent Claude file over an unbridged AGENTS.md is a finding, got {hidden}, {bridged}")
+        raised.add("USR-HIDE")
     return failures, raised
 
 
@@ -270,14 +298,87 @@ def composed_cases() -> list[str]:
 
     # One finding per agent and per unscoped rule file: a cap set inside a TOML table
     # is not a cap, and a rule file with `paths:` loads on demand, so it is left alone.
-    _, out, _ = run(os.path.join(BAD, "caps"), "--format", "json", "--today", TODAY)
-    capped = sorted(f["path"] for f in json.loads(out)["findings"] if f["code"] == "CFG-CAP")
+    capped = paths(os.path.join(BAD, "caps"), "CFG-CAP")
     if capped != [".claude/settings.json", ".codex/config.toml"]:
         failures.append(f"caps: expected one CFG-CAP per agent config, got {capped}")
-    _, out, _ = run(os.path.join(BAD, "instructions"), "--format", "json", "--today", TODAY)
-    ruled = [f["path"] for f in json.loads(out)["findings"] if f["code"] == "CLD-RULE"]
+    ruled = paths(os.path.join(BAD, "instructions"), "CLD-RULE")
     if ruled != [".claude/rules/style.md"]:
         failures.append(f"rule files: only the unscoped file should be flagged, got {ruled}")
+
+    # Claude Code reads AGENTS.md itself while no CLAUDE.md is in sight, so an AGENTS.md-only
+    # repository needs no bridge and keeps its compaction note in AGENTS.md. Once any CLAUDE.md
+    # exists, Claude reads CLAUDE.md files only, so every AGENTS.md needs one beside it.
+    found = findings(os.path.join(BAD, "agents-only"))
+    if "CLD-IMPORT" in found or found.get("CLD-COMPACT", {}).get("path") != "AGENTS.md":
+        failures.append(f"agents-only: expected no bridge finding and the note on AGENTS.md, got {found}")
+    hidden = paths(os.path.join(BAD, "mixed"), "CLD-IMPORT")
+    if hidden != ["pkg/CLAUDE.md"]:
+        failures.append(f"mixed: only the AGENTS.md no CLAUDE.md imports should be flagged, got {hidden}")
+    with tempfile.TemporaryDirectory() as scratch:
+        work = os.path.join(scratch, "work")
+        shutil.copytree(os.path.join(BAD, "mixed"), work)
+        run(work, "--fix", "--today", TODAY)
+        with open(os.path.join(work, "pkg", "CLAUDE.md"), encoding="utf-8") as source:
+            if source.read() != "@AGENTS.md\n" or paths(work, "CLD-IMPORT"):
+                failures.append("mixed --fix: the nested bridge should be the import line alone, and clear CLD-IMPORT")
+    # git does not list an ignored CLAUDE.local.md, but Claude Code still reads it.
+    for name, ignored in (("CLAUDE.local.md", False), (".claude/CLAUDE.md", False), ("CLAUDE.local.md", True)):
+        with tempfile.TemporaryDirectory() as scratch:
+            if ignored:
+                subprocess.run(["git", "init", "-q", scratch], check=True)
+                write(scratch, ".gitignore", f"{name}\n")
+            write(scratch, "AGENTS.md", "# Project\n")
+            write(scratch, name, "Personal notes.\n")
+            if paths(scratch, "CLD-IMPORT") != ["CLAUDE.md"]:
+                failures.append(f"{name} (ignored: {ignored}): it hides AGENTS.md, so the root needs a bridge")
+    # A monorepo package: the CLAUDE.md at the repository top hides the package's AGENTS.md,
+    # which is the repository's to fix, so it is a bridge finding and not a user-scope one.
+    with tempfile.TemporaryDirectory() as scratch:
+        subprocess.run(["git", "init", "-q", scratch], check=True)
+        write(scratch, "AGENTS.md", "# Monorepo\n")
+        write(scratch, "CLAUDE.md", "@AGENTS.md\n")
+        package = os.path.join(scratch, "packages", "app")
+        write(package, "AGENTS.md", "# App\n")
+        found = findings(package)
+        if "USR-HIDE" in found or found.get("CLD-IMPORT", {}).get("path") != "CLAUDE.md":
+            failures.append(f"package: the top-level CLAUDE.md should ask for a package bridge, got {sorted(found)}")
+        run(package, "--fix", "--today", TODAY)
+        if not os.path.isfile(os.path.join(package, "CLAUDE.md")) or "CLD-IMPORT" in findings(package):
+            failures.append("package --fix: the package should get its own CLAUDE.md bridge")
+    # A symlinked CLAUDE.md is a bridge when it resolves to the AGENTS.md beside it.
+    with tempfile.TemporaryDirectory() as scratch:
+        write(scratch, "AGENTS.md", "# Project\n")
+        os.symlink("AGENTS.md", os.path.join(scratch, "CLAUDE.md"))
+        if paths(scratch, "CLD-IMPORT"):
+            failures.append("symlink bridge: a CLAUDE.md linked to AGENTS.md needs no import line")
+    # A `.claude/CLAUDE.md` importing `../AGENTS.md` is a bridge, and the note goes there.
+    with tempfile.TemporaryDirectory() as scratch:
+        write(scratch, "AGENTS.md", "# Project\n")
+        write(scratch, ".claude/CLAUDE.md", "@../AGENTS.md\n")
+        found = findings(scratch)
+        if "CLD-IMPORT" in found or found.get("CLD-COMPACT", {}).get("path") != ".claude/CLAUDE.md":
+            failures.append(f".claude/CLAUDE.md bridge: expected no CLD-IMPORT and the note there, got {sorted(found)}")
+        run(scratch, "--fix", "--today", TODAY)
+        if os.path.lexists(os.path.join(scratch, "CLAUDE.md")) or "CLD-COMPACT" in findings(scratch):
+            failures.append(".claude/CLAUDE.md bridge: --fix should add the note there and write no second bridge")
+    # The note is never the whole of a new CLAUDE.md, which would hide AGENTS.md, and a
+    # CRLF AGENTS.md keeps its line endings.
+    with tempfile.TemporaryDirectory() as scratch:
+        write(scratch, "AGENTS.md", "# Project\n")
+        write(scratch, "pkg/AGENTS.md", "# Package\n")
+        write(scratch, "pkg/CLAUDE.md", "@AGENTS.md\n")
+        write(scratch, ".agents/tokenminator.json", '{"ignore": {"CLD-IMPORT:CLAUDE.md": "probe"}}\n')
+        run(scratch, "--fix", "--today", TODAY)
+        if os.path.lexists(os.path.join(scratch, "CLAUDE.md")):
+            failures.append("compact --fix: it must not create a CLAUDE.md the bridge did not write")
+    with tempfile.TemporaryDirectory() as scratch:
+        with open(os.path.join(scratch, "AGENTS.md"), "w", encoding="utf-8", newline="") as target:
+            target.write("# Project\r\n\r\n## Where Things Live\r\n\r\nNothing yet.\r\n")
+        run(scratch, "--fix", "--today", TODAY)
+        with open(os.path.join(scratch, "AGENTS.md"), encoding="utf-8", newline="") as source:
+            text = source.read()
+        if "## Compact Instructions" not in text or text.count("\n") != text.count("\r\n"):
+            failures.append("compact --fix: a CRLF AGENTS.md should get the note and keep CRLF throughout")
 
     # `next` names one area: worst severity first, the check runner before hooks,
     # and nothing at all once only proposals remain.
@@ -387,9 +488,12 @@ def composed_cases() -> list[str]:
         write(work, ".codex/config.toml", "model = \"x\"\n\n[mcp_servers.demo]\ntool_output_token_limit = 9\n")
         _, out, _ = run(work, "--fix", "--today", TODAY, *SMALL)
         left = set(findings(work, *SMALL))
-        mechanical = {"CFG-CAP", "CLD-IMPORT", "CLD-COMPACT", "DENY-MISSING", "DENY-SEARCH", "RULES-MISSING"}
+        mechanical = {"CFG-CAP", "CLD-COMPACT", "DENY-MISSING", "DENY-SEARCH", "RULES-MISSING"}
         if left & mechanical or "DNR-MISSING" not in left:
             failures.append(f"--fix: mechanical codes should clear and judgement codes stay, left {sorted(left)}:\n{out}")
+        with open(os.path.join(work, "AGENTS.md"), encoding="utf-8") as source:
+            if os.path.lexists(os.path.join(work, "CLAUDE.md")) or source.read().count("## Compact Instructions") != 1:
+                failures.append("--fix: with no CLAUDE.md the note belongs in AGENTS.md, and a CLAUDE.md would hide it")
         with open(os.path.join(work, ".codex/config.toml"), encoding="utf-8") as source:
             toml = source.read()
         if not toml.startswith("tool_output_token_limit = 2500\n") or "[mcp_servers.demo]\ntool_output_token_limit = 9" not in toml:

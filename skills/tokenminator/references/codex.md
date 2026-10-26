@@ -34,48 +34,52 @@ no local Codex binary was available to confirm it.
 
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
-| CX-01 | Codex loads `AGENTS.md` natively: the global file, then one per folder from the repository root to the launch folder. | 2026-09-19 | docs | learn.chatgpt.com/docs/agent-configuration/agents-md |
-| CX-02 | The combined chain is cut at `project_doc_max_bytes`, which defaults to 32,768 bytes. | 2026-09-19 | docs | learn.chatgpt.com/docs/agent-configuration/agents-md |
-| CX-03 | `AGENTS.override.md` replaces `AGENTS.md` in the same folder. | 2026-09-19 | docs | learn.chatgpt.com/docs/agent-configuration/agents-md |
+| CX-01 | Codex loads `AGENTS.md` natively: the global file, then one per folder from the repository root to the launch folder. | 2026-10-25 | docs | learn.chatgpt.com/docs/agent-configuration/agents-md |
+| CX-21 | Codex never reads `CLAUDE.md` unless `project_doc_fallback_filenames` names it. | 2026-10-25 | docs | learn.chatgpt.com/docs/config-file/config-reference |
+| CX-02 | The combined chain is cut at `project_doc_max_bytes`, which defaults to 32 KiB (32,768 bytes). | 2026-10-25 | docs | learn.chatgpt.com/docs/agent-configuration/agents-md |
+| CX-03 | Each folder contributes one file: `AGENTS.override.md` if present, else `AGENTS.md`, else a fallback name. | 2026-10-25 | docs | learn.chatgpt.com/docs/agent-configuration/agents-md |
 | CX-04 | Codex does not strip HTML comments, so marker lines in `AGENTS.md` cost tokens. | 2026-09-19 | unverified | inferred from the AGENTS.md docs |
 
 ## Skills
 
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
-| CX-05 | Codex reads skills from `.agents/skills` in the launch folder, its parent, and the repository root, then `~/.agents/skills`. | 2026-09-19 | docs | learn.chatgpt.com/docs/build-skills |
+| CX-05 | Codex reads `.agents/skills` in every folder from the launch folder to the repository root, then `~/.agents/skills`. | 2026-10-25 | docs | learn.chatgpt.com/docs/build-skills |
+| CX-22 | Codex also reads `/etc/codex/skills` and its bundled system skills. | 2026-10-25 | docs | learn.chatgpt.com/docs/build-skills |
 | CX-06 | A `.agents/skills` folder below the launch folder is never loaded. | 2026-09-19 | docs | learn.chatgpt.com/docs/build-skills |
-| CX-07 | Only `name` and `description` load up front. `SKILL.md` loads when the skill is chosen. | 2026-09-19 | docs | learn.chatgpt.com/docs/build-skills |
-| CX-08 | Frontmatter limits are 64 characters for `name` and 1,024 for `description`. | 2026-09-19 | unverified | Agent Skills convention |
+| CX-07 | Only `name` and `description` load up front. `SKILL.md` loads when the skill is chosen. | 2026-10-25 | docs | learn.chatgpt.com/docs/build-skills |
+| CX-08 | Limits of 64 characters for `name` and 1,024 for `description` are an Agent Skills convention, not documented for Codex. | 2026-10-25 | unverified | learn.chatgpt.com/docs/build-skills |
 | CX-09 | Scopes more than two folders below the repository root load when Codex launches there. | 2026-09-19 | unverified | learn.chatgpt.com/docs/build-skills |
 
 ## Hooks and Configuration
 
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
-| CX-10 | Project hooks live in `.codex/hooks.json` or under `[hooks]` in `.codex/config.toml`. | 2026-09-19 | docs | Codex docs, hooks page |
-| CX-11 | Project hooks run only after the user trusts the project. | 2026-09-19 | docs | Codex docs, hooks page |
-| CX-12 | A Stop hook continues the turn with `{"decision": "block"}`. | 2026-09-19 | docs | Codex docs, hooks page |
-| CX-13 | The `SessionStart` matcher accepts `startup`, `resume`, and `compact`. `clear` is not documented. | 2026-09-19 | unverified | Codex docs, hooks page |
-| CX-14 | MCP servers are declared as `[mcp_servers.<name>]` tables in `config.toml`. | 2026-09-19 | docs | Codex docs, MCP page |
-| CX-15 | A `deny_read` filesystem permission exists. Its use from project configuration is not confirmed. | 2026-09-19 | unverified | Codex docs, permissions page |
-| CX-16 | `tool_output_token_limit` in `config.toml` is the token budget for one stored tool output. | 2026-09-20 | docs | learn.chatgpt.com/docs/config-file/config-reference |
-| CX-17 | A project `.codex/config.toml` loads in trusted projects only. | 2026-09-20 | docs | learn.chatgpt.com/docs/extend/mcp |
-| CX-18 | An MCP server table takes `enabled_tools`, then `disabled_tools`, and a per-tool `output_token_limit`. | 2026-09-20 | docs | learn.chatgpt.com/docs/extend/mcp |
-| CX-19 | MCP tool schemas are not deferred; every enabled tool loads at session start. | 2026-09-20 | unverified | no deferral is documented |
+| CX-10 | Hooks live in `hooks.json` or under `[hooks]` in `config.toml`, in `~/.codex/` for the user and `.codex/` for a project. | 2026-10-25 | docs | learn.chatgpt.com/docs/hooks |
+| CX-11 | A non-managed hook runs only after the user trusts its exact definition with `/hooks`. | 2026-10-25 | docs | learn.chatgpt.com/docs/hooks |
+| CX-23 | An untrusted project skips its whole `.codex/` folder: config, hooks, and rules. | 2026-10-25 | docs | learn.chatgpt.com/docs/config-file/config-reference |
+| CX-12 | A Stop hook continues the turn with `{"decision": "block"}`, using `reason` as the next prompt. | 2026-10-25 | docs | learn.chatgpt.com/docs/hooks |
+| CX-13 | The `SessionStart` matcher accepts `startup`, `resume`, `clear`, `compact`, and `fork`. | 2026-10-25 | docs | learn.chatgpt.com/docs/hooks |
+| CX-14 | MCP servers are declared as `[mcp_servers.<name>]` tables in `config.toml`. | 2026-10-25 | docs | learn.chatgpt.com/docs/extend/mcp |
+| CX-15 | Reads are denied with `"deny"` entries under `permissions.<name>.filesystem`. Whether project configuration may set them is not documented. | 2026-10-25 | unverified | learn.chatgpt.com/docs/config-file/config-reference |
+| CX-16 | `tool_output_token_limit` in `config.toml` is the token budget for one stored tool output. | 2026-10-25 | docs | learn.chatgpt.com/docs/config-file/config-reference |
+| CX-17 | A project `.codex/config.toml` loads in trusted projects only. | 2026-10-25 | docs | learn.chatgpt.com/docs/config-file/config-reference |
+| CX-18 | An MCP server table takes `enabled_tools`, then `disabled_tools`, and a per-tool `tools.<tool>.output_token_limit`. | 2026-10-25 | docs | learn.chatgpt.com/docs/extend/mcp |
+| CX-19 | Codex can defer tool schemas, but whether it defers MCP tools by default in the CLI is not documented. | 2026-10-25 | unverified | Codex changelog 0.162.0 |
 | CX-20 | Codex searches through shell `rg`, which skips files listed in `.ignore`. | 2026-09-20 | unverified | ripgrep guide; the Codex tool set is not confirmed |
 
 ## Differences That Change a Playbook
 
-- **Instruction files.** Codex reads `AGENTS.md`; Claude Code needs the
-  `CLAUDE.md` bridge. Keep every shared rule in `AGENTS.md`.
+- **Instruction files.** Claude Code skips `AGENTS.md` in some layouts; see
+  the layout section of `instruction-files.md`.
+  Keep every shared rule in `AGENTS.md`.
 - **Nested skills.** Claude Code loads a nested scope on first file touch.
   Codex loads it only when launched there, so name skill paths in `AGENTS.md`.
 - **Read blocking.** Claude Code enforces `Read(...)` denies. For Codex the
   Do Not Read section of `AGENTS.md` is the dependable layer.
 - **Output caps.** The units differ: characters for Claude Code, tokens for
   Codex.
-- **MCP tools.** Claude Code defers tool schemas. For Codex, allowlist the
-  tools in use with `enabled_tools`.
+- **MCP tools.** Claude Code defers tool schemas. Codex may not, so
+  allowlist the tools in use with `enabled_tools`.
 - **Hooks.** Both accept the same `SessionStart` and `Stop` shape, so one
-  script can serve both. Codex needs the project trusted first.
+  script can serve both. Codex runs each hook only after the user trusts it.

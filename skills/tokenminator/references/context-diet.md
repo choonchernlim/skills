@@ -161,9 +161,10 @@ cost is in the results: a browser snapshot can be thousands of tokens.
   out of the main conversation.
 - Prefer a script when the same steps will run again.
 - For Codex, list only the tools in use under the server's `enabled_tools`.
-  Codex does not document deferred schemas.
+  Codex does not document whether it defers their schemas.
 - Cap a server's results: `MAX_MCP_OUTPUT_TOKENS` under `env` in
-  `.claude/settings.json`, and `output_token_limit` per tool for Codex.
+  `.claude/settings.json`, and `tools.<tool>.output_token_limit` in the
+  server's table for Codex.
 
 ## Verify
 

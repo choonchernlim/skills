@@ -13,7 +13,7 @@ This playbook gives one source of truth and keeps it from drifting.
 ## Table of Contents
 
 - [Codes This Fixes](#codes-this-fixes)
-- [Bridge the Two Agents](#bridge-the-two-agents)
+- [Choose a Layout](#choose-a-layout)
 - [Scope Claude Rule Files](#scope-claude-rule-files)
 - [Write the Orientation Section](#write-the-orientation-section)
 - [Write the Do Not Read Section](#write-the-do-not-read-section)
@@ -27,41 +27,47 @@ This playbook gives one source of truth and keeps it from drifting.
 | Code | Fix |
 | --- | --- |
 | `AGT-MISSING` | Create a root `AGENTS.md`. |
-| `CLD-IMPORT` | Add `CLAUDE.md` beside each `AGENTS.md` with one import line. |
+| `CLD-IMPORT` | Add a `CLAUDE.md` with one import line beside each `AGENTS.md`, or remove every Claude file. |
 | `CLD-FORK` | Move shared rules out of `CLAUDE.md` into `AGENTS.md`. |
 | `CLD-RULE` | Add `paths:` frontmatter, or move a shared rule into `AGENTS.md`. |
-| `CLD-COMPACT` | Add a Compact Instructions section to `CLAUDE.md`. |
+| `CLD-COMPACT` | Add a Compact Instructions section to `CLAUDE.md`, or to `AGENTS.md` when there is no `CLAUDE.md`. |
 | `ORIENT-MISSING` | Add the orientation section. |
 | `DNR-MISSING`, `DNR-UNLISTED` | Add or extend the Do Not Read section. |
 | `PATH-DEAD` | Correct or remove the path. |
 | `INS-LONG` | Move detail into docs and link to them. |
 | `RULES-MISSING`, `RULES-OUTDATED`, `RULES-EDITED` | Run `--fix-rules-block`. |
 
-Run `python3 scripts/audit_tokens.py <repo> --fix` first. It writes a missing
-`CLAUDE.md` bridge, the Compact Instructions section, and the rules block.
+Run `python3 scripts/audit_tokens.py <repo> --fix` first. It writes a
+`CLAUDE.md` bridge beside each `AGENTS.md` that a Claude file hides, the
+Compact Instructions section, and the rules block.
 The sections that need knowledge of the project stay with you.
 
-## Bridge the Two Agents
+## Choose a Layout
 
-Codex reads `AGENTS.md`. Claude Code reads `CLAUDE.md` and ignores
-`AGENTS.md`. Without a bridge, Claude sessions never see the project rules.
+Both agents read `AGENTS.md`, but Claude Code stops once a `CLAUDE.md`,
+`.claude/CLAUDE.md`, or `CLAUDE.local.md` is in the launch folder or above.
+Put every shared instruction in `AGENTS.md`, then pick one layout:
 
-1. Put every shared instruction in `AGENTS.md`.
-2. Create `CLAUDE.md` in the same folder containing one line:
+| Layout | Use when |
+| --- | --- |
+| `AGENTS.md` only | No Claude-only notes, and Claude Code is 2.1.277 or later (2.1.281 on Bedrock, Vertex, or with telemetry off). |
+| A `CLAUDE.md` holding `@AGENTS.md` beside every `AGENTS.md` | Claude-only notes, older Claude Code, `InstructionsLoaded` hooks, or `--add-dir` folders. |
 
-   ```text
-   @AGENTS.md
-   ```
+Never mix them: Claude skips an `AGENTS.md` that no `CLAUDE.md` imports.
+A `.claude/CLAUDE.md` holding `@../AGENTS.md` also counts as the bridge.
+Keep Claude-only notes under 15 lines.
 
-3. Repeat for a nested `AGENTS.md` only when a folder has facts of its own.
-4. Keep `CLAUDE.md` for Claude-only notes, and keep those under 15 lines.
+Add a nested `AGENTS.md` only for a folder with facts of its own. A Claude
+file in a folder above the repository is `USR-HIDE`: move its rules into
+`~/.claude/CLAUDE.md`, which does not count.
 
 ### Tell Compaction What to Keep
 
 Claude Code reads a `## Compact Instructions` section when it summarizes a
 long session. Without one, the summary can drop the plan or the failing
 check, and the agent derives both again. Codex ignores the section, so it
-goes in `CLAUDE.md`, under the import line:
+goes in `CLAUDE.md`, under the import line. With no `CLAUDE.md`, it goes at
+the end of `AGENTS.md`, where Codex pays for one unused line:
 
 ```markdown
 ## Compact Instructions

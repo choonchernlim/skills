@@ -53,6 +53,16 @@ VIEW_OWNERS = {
 # Mermaid wraps a boundary title at 200 pixels and hides the second line behind
 # the first node. 24 characters stay on one line in every renderer font.
 BOUNDARY_TITLE_MAX = 24
+# Optional node color. Each fill is a 20% tint over the viewer background and
+# the text keeps the viewer theme's color, so a node reads in a light or dark
+# theme. The swatch names the class in the legend line under the diagram.
+PALETTE = {
+    "own": ("\U0001F7E6", "fill:#1a73e833,stroke:#1a73e8"),
+    "peer": ("\U0001F7E9", "fill:#18803833,stroke:#188038"),
+    "platform": ("\U0001F7E7", "fill:#e3740033,stroke:#e37400"),
+    "vendor": ("\u2B1C", "fill:#5f636833,stroke:#5f6368"),
+    "model": ("\U0001F7EA", "fill:#9334e633,stroke:#9334e6,stroke-width:3px"),
+}
 
 BANNED_WORDS = [
     "just", "simply", "easy", "easily", "trivial", "straightforward", "painless",
@@ -123,6 +133,7 @@ class Doc:
     doc_type: str | None = None
     findings: list[Finding] = field(default_factory=list)
     prose_shingles: dict[str, int] = field(default_factory=dict)
+    legends: set[int] = field(default_factory=set)
     diagrams: list[Diagram] = field(default_factory=list)
     settled: bool = False
 
@@ -512,6 +523,7 @@ def check_mermaid(doc: Doc, blocks: list[Block], root: str) -> None:
             continue
         head = body[0].strip()
         check_portable(doc, line_no, body)
+        colors = check_colors(doc, line_no, body[1:], head == "graph TD") if head in ("graph TD", "sequenceDiagram", "erDiagram") else set()
         boundaries: list[str] = []
         if head == "graph TD":
             family = flowchart_family(body[1:])
@@ -531,15 +543,47 @@ def check_mermaid(doc: Doc, blocks: list[Block], root: str) -> None:
         if any("click " in l for l in body):
             doc.add(line_no, "MMD", "click directives are not allowed; the Node table carries the links")
         before = [x for x in blocks[:i] if x.kind != "blank"]
-        if not before or before[-1].kind != "para":
+        if not before or before[-1].kind != "para" or is_legend(before[-1]):
             doc.add(line_no, "MMD", "a diagram is preceded by one lead sentence")
         after = [x for x in blocks[i + 1:] if x.kind != "blank"]
+        legend = after[0] if after and is_legend(after[0]) else None
+        if legend:
+            after = after[1:]
+        # A legend below the list or the Node table is misplaced. Each one is
+        # reported, and the first stands in for the missing legend.
+        misplaced: list[Block] = []
         if after and after[0].kind == "list" and re.match(r"^\s*\d+\.", after[0].lines[0]):
             after = after[1:]
+        if after and is_legend(after[0]):
+            misplaced.append(after.pop(0))
         if not after or after[0].kind != "table" or not re.match(r"^\|\s*Node\s*\|\s*Source\s*\|", after[0].lines[0]):
-            doc.add(line_no, "MMD", "a diagram is followed by an optional numbered list and then a '| Node | Source |' table")
+            doc.add(line_no, "MMD", "a diagram is followed by an optional legend, an optional numbered list, and then a '| Node | Source |' table")
             doc.diagrams.append(Diagram(line_no, family, titles, edges))
             continue
+        if len(after) > 1 and is_legend(after[1]):
+            misplaced.append(after[1])
+        for extra in misplaced:
+            if legend is None:
+                legend = extra
+                doc.add(extra.start + 1, "MMD", "move the legend directly under the diagram, above the numbered list and Node table")
+            else:
+                doc.add(extra.start + 1, "MMD", "a diagram takes one legend, directly under it; remove this one")
+                # Reported here, so the stray copy is not also a duplicate fact.
+                doc.legends.add(extra.start)
+        if legend and not colors and len(legend.lines) == 1:
+            # A line-style key under a plain diagram repeats by design too.
+            doc.legends.add(legend.start)
+        if colors and legend is None:
+            doc.add(line_no, "MMD", "a colored diagram is followed directly by a '**Legend:**' line")
+        elif colors and len(legend.lines) > 1:
+            doc.add(legend.start + 1, "MMD", "a legend is one line; move any explanation into the paragraph after it")
+        elif colors:
+            doc.legends.add(legend.start)
+            for name, (swatch, _) in PALETTE.items():
+                if (name in colors) != (swatch in legend.lines[0]):
+                    doc.add(legend.start + 1, "MMD", f"legend names the '{name}' swatch {swatch} exactly when the diagram uses that class")
+        elif legend and any(swatch in legend.lines[0] for swatch, _ in PALETTE.values()):
+            doc.add(legend.start + 1, "MMD", "legend names a palette swatch, but the diagram above it has no color")
         sources: dict[str, str] = {}
         boundary_rows: dict[str, str] = {}
         for r in after[0].lines[2:]:
@@ -575,9 +619,12 @@ def resolve_source(doc: Doc, cell: str, root: str) -> str:
     return os.path.relpath(full, root).replace(os.sep, "/")
 
 
-NODE_RX = re.compile(r'(\w+)\s*(\[\(|\[/|\[|\(\(|\(|\{)\s*"([^"]*)"')
-NODE_DEF_RX = re.compile(r'(\w+)\s*(?:\[\(|\[/|\[|\(\(|\(|\{)\s*"[^"]*"\s*(?:\)\]|/\]|\]|\)\)|\)|\})')
-ARROW = r'(?:(?:-->|==>|-\.->|---)\s*(?:\|\s*"([^"]*)"\s*\|)?|-\.\s*"([^"]*)"\s*\.->|--\s*"([^"]*)"\s*-->|==\s*"([^"]*)"\s*==>)'
+# Every quoted node shape, longest opening first, so a disallowed shape is
+# still read as a node and reported once, with no follow-on findings.
+NODE_OPEN = r'\(\(\(|\(\[|\[\[|\[\(|\[/|\[\\|\{\{|\(\(|>|\[|\(|\{'
+NODE_RX = re.compile(r'(\w+)\s*(' + NODE_OPEN + r')\s*"([^"]*)"')
+NODE_DEF_RX = re.compile(r'(\w+)\s*(?:' + NODE_OPEN + r')\s*"[^"]*"\s*[\])}/\\]{1,3}')
+ARROW = r'(?:(?:-->|==>|-\.->)\s*(?:\|\s*"([^"]*)"\s*\|)?|-\.\s*"([^"]*)"\s*\.->|--\s*"([^"]*)"\s*-->|==\s*"([^"]*)"\s*==>)'
 EDGE_RX = re.compile(r'(\w+)\s*' + ARROW + r'\s*(?=(\w+))')
 BOUNDARY_TITLE_RX = re.compile(r"^[^<>\[\]]+$")
 BOUNDARY_ROW_RX = re.compile(r"^(.+?) \[([A-Z ]+)\]$")
@@ -586,6 +633,64 @@ HTML_TAG_RX = re.compile(r"<(?!br/>)/?[a-zA-Z][^>]*>")
 # Markdown, and several releases draw 'Unsupported markdown: list' instead.
 MARKDOWN_LABEL_RX = re.compile(r"^\s*(?:\d+[.)]|[-*+>]|#{1,6})\s")
 STEP_RX = re.compile(r"^\d+[a-z]?:\s")
+TYPED_LABEL_RX = re.compile(r"^(.+)<br/>\[([A-Z, ]+)\]$")
+# These run on a line whose quoted strings are blanked, so label text cannot
+# trigger them. An unquoted edge label, piped or inline, hides the edge from
+# every other edge check, and so does any link other than the three portable
+# ones, or a second link on the same line.
+QUOTED_RX = re.compile(r'"[^"]*"')
+UNQUOTED_EDGE_RX = re.compile(
+    r'(?:-->|==>|-\.->)\s*\|(?!\s*")'
+    r'|(?:--|==|-\.)\s*(?!"")[^\s\-=.>|"][^>|]*?(?:-->|==>|\.->)'
+    r'|\|\s*""\s*[^\s|]'
+)
+# A lengthened arrow is left to LONG_ARROW_RX.
+OTHER_LINK_RX = re.compile(r'<[-=.]|---(?!-*>)|===(?!=*>)|\.-(?!>)|[-=]{2}[xo]|~~~')
+LONG_ARROW_RX = re.compile(r'-{3,}>|={3,}>|\.{2,}->')
+LINK_HEAD_RX = re.compile(r'-->|==>|\.->')
+# The node and edge id and property syntax of newer Mermaid releases, such as
+# 'A@{ shape: circle }' or 'A e1@--> B'.
+PROPERTY_SYNTAX_RX = re.compile(r'\w+@')
+
+
+def masked(s: str) -> str:
+    """Blank every quoted string to spaces in place, so a match cannot start inside a label and positions still map to s."""
+    return QUOTED_RX.sub(lambda m: '"' + " " * (len(m.group(0)) - 2) + '"', s)
+
+
+def quoted_nodes(s: str) -> list[tuple[str, str, str, int]]:
+    """Return (id, opening, label, end) for each quoted node definition on a line."""
+    return [(m.group(1), m.group(2), s[m.start(3):m.end(3)], m.end()) for m in NODE_RX.finditer(masked(s))]
+
+
+def strip_node_defs(s: str) -> str:
+    """Replace each quoted node definition with its id, so EDGE_RX reads the edge around it."""
+    out, last = [], 0
+    for m in NODE_DEF_RX.finditer(masked(s)):
+        out += [s[last:m.start()], m.group(1)]
+        last = m.end()
+    return "".join(out) + s[last:]
+# The opening and closing brackets of the three allowed node shapes, and the
+# shape each application TYPE takes; the rest are rectangles.
+SHAPES = {"[": "]", "[(": ")]", "[/": "/]"}
+TYPE_SHAPES = {"API": ("[/", "/]"), "DATA": ("[(", ")]"), "DATABASE": ("[(", ")]")}
+RECTANGLE = ("[", "]")
+
+SHAPE_MESSAGE = "node '{}' must be a rectangle, cylinder, or parallelogram"
+
+
+def link_problems(blanked: str, s: str) -> list[str]:
+    """Describe each link on a line that the edge checks cannot read. Its pieces would read as phantom edges, so callers skip its edges."""
+    problems = []
+    if UNQUOTED_EDGE_RX.search(blanked):
+        problems.append(f"edge label must be quoted, as '-->|\"verb\"|': '{s[:50]}'")
+    if OTHER_LINK_RX.search(blanked):
+        problems.append(f"link with '-->', '-.->', or '==>' only: '{s[:50]}'")
+    if LONG_ARROW_RX.search(blanked):
+        problems.append(f"long arrows are not portable; use '-->': '{s[:50]}'")
+    if len(LINK_HEAD_RX.findall(blanked)) > 1 or "&" in blanked:
+        problems.append(f"draw one edge per line: '{s[:50]}'")
+    return problems
 
 
 def check_portable(doc: Doc, line_no: int, body: list[str]) -> None:
@@ -597,8 +702,6 @@ def check_portable(doc: Doc, line_no: int, body: list[str]) -> None:
             doc.add(line_no, "MMD", f"'{tag.group(0)[:30]}' is not portable; '<br/>' is the only HTML a label may hold")
         if "`" in s:
             doc.add(line_no, "MMD", f"Markdown string labels are not portable: '{s[:40]}'")
-        if re.search(r"-{4,}>|={4,}>|-\.{2,}->", s):
-            doc.add(line_no, "MMD", f"long arrows are not portable; use '-->': '{s[:40]}'")
         labels = re.findall(r'"([^"]*)"', s)
         message = re.match(r"^\w+\s*-{1,2}(?:>>?|x|\))\s*\w+\s*:\s*(.*)$", s)
         if message:
@@ -610,12 +713,95 @@ def check_portable(doc: Doc, line_no: int, body: list[str]) -> None:
 
 def flowchart_family(body: list[str]) -> str:
     for line in body:
-        for match in NODE_RX.finditer(line):
-            label = match.group(3)
-            label_match = re.match(r"^.+<br/>\[([A-Z, ]+)\]$", label)
-            if label_match and label_match.group(1).strip() in INFRASTRUCTURE_MERMAID_TYPES:
+        for _, _, label, _ in quoted_nodes(line):
+            label_match = TYPED_LABEL_RX.match(label)
+            if label_match and label_match.group(2).strip() in INFRASTRUCTURE_MERMAID_TYPES:
                 return "infrastructure"
     return "application"
+
+
+def check_colors(doc: Doc, line_no: int, body: list[str], flowchart: bool) -> set[str]:
+    """Check one diagram's palette classes and return the ones it colors nodes with."""
+    types: dict[str, str] = {}
+    boundaries: set[str] = set()
+    declared: set[str] = set()
+    defined: set[str] = set()
+    assigned: dict[str, list[str]] = {}
+    invalid = False
+    # A line the edge checks cannot read leaves its bare endpoints untyped.
+    skipped = False
+    for l in body:
+        s = l.strip()
+        keyword = re.match(r"^(style|linkStyle|classDef|class)\b", s)
+        if flowchart and ":::" in re.sub(r'"[^"]*"', '""', s):
+            doc.add(line_no, "MMD", "':::' is not allowed; assign a palette class with a 'class' line")
+            invalid = True
+        if keyword and keyword.group(1) in ("style", "linkStyle"):
+            doc.add(line_no, "MMD", f"'{keyword.group(1)}' is not allowed; only palette classes add color, and boundaries and edges keep the viewer theme")
+            invalid = True
+            continue
+        if keyword and not flowchart:
+            doc.add(line_no, "MMD", "only a 'graph TD' diagram takes color")
+            invalid = True
+            continue
+        if keyword and keyword.group(1) == "classDef":
+            m = re.match(r"^classDef\s+(\w+)\s+(\S+)$", s)
+            name = m.group(1) if m else ""
+            declared.add(name)
+            if name not in PALETTE:
+                doc.add(line_no, "MMD", f"classDef must be one of the palette classes {', '.join(PALETTE)}: '{s[:50]}'")
+                invalid = True
+            elif m.group(2) != PALETTE[name][1]:
+                doc.add(line_no, "MMD", f"classDef {name} must be exactly '{PALETTE[name][1]}', with nothing after it")
+                invalid = True
+            else:
+                defined.add(name)
+            continue
+        if keyword:
+            m = re.match(r"^class\s+(\w+(?:,\w+)*)\s+(\w+)$", s)
+            if not m:
+                doc.add(line_no, "MMD", f"class line must be 'class id,id name', with no space after a comma and no ';': '{s[:50]}'")
+                invalid = True
+                continue
+            for ident in m.group(1).split(","):
+                assigned.setdefault(ident, []).append(m.group(2))
+            continue
+        if not flowchart:
+            continue
+        sub = re.match(r"^subgraph\s+(\w+)", s)
+        if sub:
+            boundaries.add(sub.group(1))
+            continue
+        for ident, _, label, _ in quoted_nodes(s):
+            tm = TYPED_LABEL_RX.match(label)
+            types[ident] = tm.group(2).strip() if tm else ""
+        blanked = QUOTED_RX.sub('""', s)
+        if link_problems(blanked, s) or PROPERTY_SYNTAX_RX.search(blanked):
+            skipped = True
+            continue
+        for em in EDGE_RX.finditer(strip_node_defs(s)):
+            types.setdefault(em.group(1), "")
+            types.setdefault(em.group(6), "")
+    for ident in boundaries:
+        types.pop(ident, None)
+    used = {name for names in assigned.values() for name in names}
+    for name in sorted(defined - used):
+        doc.add(line_no, "MMD", f"classDef {name} is never assigned; drop it or add a 'class' line")
+    for name in sorted(used - declared):
+        doc.add(line_no, "MMD", f"class '{name}' has no palette classDef in this diagram")
+    for ident, names in assigned.items():
+        if ident in boundaries:
+            doc.add(line_no, "MMD", f"boundary '{ident}' takes no color; a tinted frame blends into the tinted nodes inside it")
+        elif ident not in types and not skipped:
+            doc.add(line_no, "MMD", f"class line names '{ident}', which is not a node")
+        elif len(names) > 1:
+            doc.add(line_no, "MMD", f"'{ident}' takes one class, found {', '.join(names)}")
+        elif (names[0] == "model") != (types[ident] == "AGENT"):
+            doc.add(line_no, "MMD", f"'{ident}': the model class marks every [AGENT] node and nothing else")
+    missing = [ident for ident in types if ident not in assigned]
+    if assigned and missing and not invalid:
+        doc.add(line_no, "MMD", f"color every node or none; uncolored: {', '.join(missing)}")
+    return used & declared
 
 
 def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tuple[list[str], list[tuple[str, str, str]], list[str]]:
@@ -623,6 +809,7 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tup
     edges: list[tuple[str, str]] = []
     boundaries: dict[str, str] = {}
     opened: str | None = None
+    any_malformed = False
     for l in body:
         s = l.strip()
         if opened is not None and not s.startswith("direction"):
@@ -645,9 +832,20 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tup
             if s.startswith("direction") and (s != "direction TB" or was_opened is None):
                 doc.add(line_no, "MMD", "the only direction line allowed is 'direction TB' on the first line of a boundary")
             continue
-        for m in NODE_RX.finditer(s):
-            ident, label = m.group(1), m.group(3)
-            lm = re.match(r"^(.+)<br/>\[([A-Z, ]+)\]$", label)
+        blanked = QUOTED_RX.sub('""', s)
+        problems = link_problems(blanked, s)
+        for problem in problems:
+            doc.add(line_no, "MMD", problem)
+        property_syntax = PROPERTY_SYNTAX_RX.search(blanked)
+        if property_syntax:
+            doc.add(line_no, "MMD", f"'@' ids and properties are not portable: '{s[:50]}'")
+        malformed = bool(problems or property_syntax)
+        any_malformed = any_malformed or malformed
+        for ident, opening, label, end in quoted_nodes(s):
+            shape_ok = opening in SHAPES and s[end:].lstrip().startswith(SHAPES[opening])
+            lm = TYPED_LABEL_RX.match(label)
+            if not shape_ok:
+                doc.add(line_no, "MMD", SHAPE_MESSAGE.format(lm.group(1).strip() if lm else label))
             if not lm:
                 doc.add(line_no, "MMD", f"node label must be 'Title<br/>[TYPE]': '{label}'")
                 nodes[ident] = label
@@ -655,6 +853,10 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tup
             title, typ = lm.group(1).strip(), lm.group(2).strip()
             if typ not in MERMAID_TYPES:
                 doc.add(line_no, "MMD", f"unknown TYPE '{typ}' in node '{title}'")
+            if shape_ok and typ in APPLICATION_MERMAID_TYPES:
+                want = TYPE_SHAPES.get(typ, RECTANGLE)
+                if opening != want[0]:
+                    doc.add(line_no, "MMD", f"node '{title}' is {typ}; draw it as '{want[0]}\"...\"{want[1]}'")
             if family == "infrastructure" and typ in {"SYSTEM", "SERVICE", "DATABASE"}:
                 doc.add(line_no, "MMD", f"infrastructure node '{title}' uses generic TYPE '{typ}'; name the platform service")
             if re.match(r"^\d+[a-z]?[.:]\s", title):
@@ -662,7 +864,7 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tup
             if len(title.split()) > 4:
                 doc.add(line_no, "MMD", f"node title longer than three or four words: '{title}'")
             nodes[ident] = title
-        stripped = NODE_DEF_RX.sub(r"\1", s)
+        stripped = "" if malformed else strip_node_defs(s)
         for em in EDGE_RX.finditer(stripped):
             src, dst = em.group(1), em.group(6)
             label = next((g for g in em.groups()[1:5] if g is not None), None)
@@ -677,11 +879,12 @@ def check_flowchart(doc: Doc, line_no: int, body: list[str], family: str) -> tup
                 if len(words) > 4:
                     doc.add(line_no, "MMD", f"edge label longer than four words: '{label}'")
     count = len(nodes)
-    if count < 4:
+    # A malformed line drops its edges, and an '@{ }' node is never counted, so a small or split graph here would be a follow-on finding.
+    if count < 4 and not any_malformed:
         doc.add(line_no, "MMD", f"only {count} nodes; write a sentence instead of a diagram")
     if count > 12:
         doc.add(line_no, "MMD", f"{count} nodes exceeds the cap of 12; split the diagram")
-    if nodes and edges:
+    if nodes and edges and not any_malformed:
         adj: dict[str, set[str]] = {n: set() for n in nodes}
         for a, c in edges:
             adj.setdefault(a, set()).add(c)
@@ -735,7 +938,7 @@ def check_sequence(doc: Doc, line_no: int, body: list[str]) -> tuple[list[str], 
         if pm:
             kw, ident, label = pm.groups()
             label = label or ident
-            lm = re.match(r"^(.+)<br/>\[([A-Z, ]+)\]$", label)
+            lm = TYPED_LABEL_RX.match(label)
             if not lm:
                 doc.add(line_no, "MMD", f"participant label must be 'Title<br/>[TYPE]': '{label}'")
                 titles.append(label)
@@ -759,6 +962,8 @@ def check_sequence(doc: Doc, line_no: int, body: list[str]) -> tuple[list[str], 
                 doc.add(line_no, "MMD", f"sequence message is not numbered '1: text': '{text[:40]}'")
             action = re.sub(r"^\d+[a-z]?[.:]\s*", "", text).strip().lower()
             edges.append((idents.get(src, src), idents.get(dst, dst), action))
+        elif re.match(r"^\w+\s*-{3,}", s):
+            doc.add(line_no, "MMD", f"long arrows are not portable; use '->>': '{s[:40]}'")
     if len(titles) > 7:
         doc.add(line_no, "MMD", f"{len(titles)} participants exceeds the cap of 7; split the flow")
     if messages > 12:
@@ -821,9 +1026,16 @@ def content_words(sentence: str) -> frozenset[str]:
     return frozenset(stem(w) for w in words if w not in STOPWORDS and len(w) > 2)
 
 
+def is_legend(b: Block) -> bool:
+    return b.kind == "para" and b.lines[0].startswith("**Legend:**")
+
+
 def collect_sentences(doc: Doc, blocks: list[Block]) -> list[tuple[int, str, frozenset[str]]]:
     out: list[tuple[int, str, frozenset[str]]] = []
     for b in blocks:
+        # A diagram's legend repeats the shared palette and line styles by design, so it is not a fact to deduplicate.
+        if b.start in doc.legends:
+            continue
         if b.kind == "para":
             units = [" ".join(l.strip() for l in b.lines)]
         elif b.kind == "list":
@@ -864,7 +1076,7 @@ def check_near_duplicates(docs: list[Doc], sentence_sets: dict[str, list[tuple[i
 
 def collect_shingles(doc: Doc, blocks: list[Block]) -> None:
     for b in blocks:
-        if b.kind not in ("para", "list"):
+        if b.kind not in ("para", "list") or b.start in doc.legends:
             continue
         for j, raw in enumerate(b.lines):
             text = raw.strip()

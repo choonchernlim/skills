@@ -14,6 +14,7 @@ Audience: the writer, before drawing or editing any diagram.
 - [Diagram Block](#diagram-block)
 - [Portable Syntax](#portable-syntax)
 - [Shared Visual Language](#shared-visual-language)
+- [Color](#color)
 - [Boundaries](#boundaries)
 - [Size Budget](#size-budget)
 - [Render and Inspect](#render-and-inspect)
@@ -56,8 +57,9 @@ Every diagram appears in this order:
 
 1. One lead sentence states what the reader will learn.
 2. One fenced `mermaid` block contains one connected idea.
-3. A numbered list explains numbered messages or edges.
-4. A `Node | Source` table maps every node or entity to its owner.
+3. When the diagram uses [color](#color), one `**Legend:**` line names each color. It also names each line style the reader must learn, such as a thick or dotted line `[judgement]`.
+4. A numbered list explains numbered messages or edges.
+5. A `Node | Source` table maps every node or entity to its owner.
 
 Use `-` when a node is a person, external system, or concept without a source
 in the repository. Never use Mermaid `click` directives.
@@ -76,9 +78,10 @@ diagram type. Use only syntax that every one of them accepts.
 | `<br/>` is the only HTML in a label. | Other tags and inline styles are stripped or shown as text. |
 | Write a step number as `1: text`. | Mermaid 11 parses a label as Markdown, and `1. text` draws "Unsupported markdown: list". |
 | Never open a label with `-`, `*`, `+`, `>`, `#`, `1.`, or `1)`, and never use a backtick Markdown string. | The same Markdown parsing. |
-| Use `-->`, `-.->`, and `==>` at their normal length. | Azure DevOps rejects lengthened arrows such as `---->`. |
+| Keep every flowchart link at its normal length. | Azure DevOps rejects lengthened arrows such as `---->`. |
+| Never give a node or edge an `@` id or `@{ }` properties. | Mermaid releases before 11 reject the syntax, and the edge on that line is lost. |
 | Link nodes, never a boundary. | Azure DevOps rejects an edge that starts or ends on a subgraph. |
-| Never set configuration, themes, colors, styles, or classes. | Each renderer supplies its own theme in light and dark mode. |
+| Never set configuration, themes, `style`, or `linkStyle`; color only through the [palette](#color). | Each renderer supplies its own light or dark theme; only the palette's see-through fills read in both. |
 
 The local renderer runs the newest Mermaid, so a clean PNG does not prove
 portability. The lint enforces this table; trust it over the render.
@@ -87,11 +90,51 @@ portability. The lint enforces this table; trust it over the render.
 
 - Read top to bottom at normal IDE and repository preview width.
 - Use short noun labels and verb-led edges.
+- Link only with `-->`, `-.->`, or `==>`, so every edge reads in one direction, and draw one edge per line, so every relationship gets its own label.
 - Put order numbers on edges or messages as `1: text`, never on nodes.
-- Use rectangles for actors and services, cylinders for persisted data, and parallelograms for APIs.
-- Keep one connected graph per block.
+- Use rectangles for actors and services, cylinders for persisted data, and parallelograms for APIs, and no other shape.
 - Prefer three siblings abreast; four is the maximum after rendering proves they remain readable.
-- Split by boundary or phase before text becomes too small to read without zooming.
+- Keep one connected graph per block, and split by boundary or phase before text becomes too small to read without zooming.
+
+## Color
+
+Color is optional and only for `graph TD`. Use it when a diagram crosses
+owners or holds model calls, so a reader sees who owns what without reading
+every tag. Color adds to the `[TYPE]` tag; it never replaces it.
+
+| Class | Swatch | Marks | Definition |
+| --- | --- | --- | --- |
+| `own` | 🟦 | the team that owns this repository | `fill:#1a73e833,stroke:#1a73e8` |
+| `peer` | 🟩 | another team in the organization | `fill:#18803833,stroke:#188038` |
+| `platform` | 🟧 | the organization outside both teams: its people and shared platforms | `fill:#e3740033,stroke:#e37400` |
+| `vendor` | ⬜ | a vendor-managed service, such as a cloud API | `fill:#5f636833,stroke:#5f6368` |
+| `model` | 🟪 | a model call, whoever owns it | `fill:#9334e633,stroke:#9334e6,stroke-width:3px` |
+
+- Color every node or none. A plain node in a colored diagram has no owner to read.
+- Give every `[AGENT]` node the `model` class, and no other node.
+- Assign each node one class with a `class id,id name` line, and copy each
+  used `classDef` exactly. Never use `:::`.
+- Never color a boundary or an edge. Color marks one node's owner, and a
+  tinted frame blends into the tinted nodes inside it.
+- Never fix a node's text color. Each fill is a 20% tint, so the viewer
+  theme's text color stays readable, and JetBrains previews override a fixed
+  label color anyway.
+- Follow the diagram directly with one `**Legend:**` line, so the reader
+  meets the key with the colors. It names each swatch used, and no other,
+  with the real owner names.
+
+```text
+graph TD
+  ...
+  class Api,Store own
+  class Planner model
+  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef model fill:#9334e633,stroke:#9334e6,stroke-width:3px
+```
+
+```text
+**Legend:** 🟦 Orders team · 🟪 model call
+```
 
 ## Boundaries
 

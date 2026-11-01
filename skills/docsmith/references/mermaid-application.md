@@ -19,7 +19,8 @@ only when their dependency is the point of the diagram.
 | Node label | `Title<br/>[TYPE]`, quoted. Title is one to three words; TYPE is from the closed list below. |
 | Shape | Chosen by TYPE: `id["..."]` rectangle, `id[("...")]` cylinder, `id[/"..."/]` parallelogram. |
 | Subgraph | A real typed boundary in the shared [boundary format](mermaid.md#boundaries). |
-| Edge label | Required on every edge, one to four words, a verb: `-->\|"validates"\|`. |
+| Color | Optional, from the shared [palette](mermaid.md#color). |
+| Edge label | Required on every edge, quoted, one to four words, a verb: `-->\|"validates"\|`. |
 | Step numbers | Prefix edge labels `1:`, `2:` when the diagram is a flow. Numbers mean order, never ownership. |
 | Forbidden | `click`, horizontal flowcharts, decorative subgraphs, ASCII diagrams, and anything outside the [portable syntax](mermaid.md#portable-syntax). |
 
@@ -71,7 +72,14 @@ graph TD
   Route -->|"2: checks stock"| Inventory
   Inventory -->|"queries"| Warehouse
   Route -->|"3: stores order"| Store
+
+  class Browser,Route,Inventory,Store own
+  class Warehouse peer
+  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef peer fill:#18803833,stroke:#188038
 ```
+
+**Legend:** 🟦 Orders team · 🟩 Warehouse team
 
 1. The browser submits the customer's order.
 2. The API checks stock through the inventory client.

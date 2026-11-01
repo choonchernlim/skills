@@ -15,7 +15,7 @@ Lead.
 graph TD
   A["1. One<br/>[UI]"] -->|"calls with a very long label"| B["Two"]
   B --> C["Three<br/>[WIDGET]"]
-  C -->|"calls"| D["Four<br/>[DATA]"]
+  C -->|"calls"| D[("Four<br/>[DATA]")]
 ```
 
 | Node | Source |

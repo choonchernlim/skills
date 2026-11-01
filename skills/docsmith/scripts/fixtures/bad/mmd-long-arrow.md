@@ -7,7 +7,7 @@ Type: explanation
 
 Audience: maintainers, to see one rule fail.
 
-One edge uses a lengthened arrow.
+Three edges use a lengthened arrow.
 
 ```mermaid
 graph TD
@@ -15,8 +15,8 @@ graph TD
   Two["Two<br/>[SERVICE]"]
   Three["Three<br/>[SERVICE]"]
   Four["Four<br/>[SERVICE]"]
-  One -->|"calls"| Two
-  Two -->|"calls"| Three
+  One -. "calls" ..-> Two
+  Two --->|"calls"| Three
   Three ---->|"calls"| Four
 ```
 

@@ -20,6 +20,7 @@ LINT = os.path.join(HERE, "lint_docs.py")
 GOOD = os.path.join(HERE, "fixtures", "good")
 BAD = os.path.join(HERE, "fixtures", "bad")
 REFERENCES = os.path.join(HERE, "..", "references")
+PALETTE_OWN = "fill:#1a73e833,stroke:#1a73e8"
 
 EXPECTED = {
     "hdr.md": "HDR",
@@ -63,6 +64,15 @@ EXPECTED = {
     "mmd-keyword.md": "MMD",
     "mmd-markdown-label.md": "MMD",
     "mmd-long-arrow.md": "MMD",
+    "mmd-shape.md": "MMD",
+    "mmd-edge-quote.md": "MMD",
+    "mmd-link.md": "MMD",
+    "mmd-color-palette.md": "MMD",
+    "mmd-color-style.md": "MMD",
+    "mmd-color-partial.md": "MMD",
+    "mmd-color-model.md": "MMD",
+    "mmd-color-legend.md": "MMD",
+    "mmd-color-rules.md": "MMD",
     "view/docs/architecture.md": "VIEW",
     "mmd-infrastructure-generic.md": "MMD",
     "adr-settled.md": "TOC",
@@ -84,6 +94,16 @@ EXPECTED_COUNTS = {
     "mmd-html.md": ("MMD", 1),
     "mmd-keyword.md": ("MMD", 1),
     "mmd-markdown-label.md": ("MMD", 1),
+    "mmd-color-palette.md": ("MMD", 1),
+    "mmd-color-style.md": ("MMD", 1),
+    "mmd-color-partial.md": ("MMD", 1),
+    "mmd-color-model.md": ("MMD", 1),
+    "mmd-color-legend.md": ("MMD", 1),
+    "mmd-color-rules.md": ("MMD", 20),
+    "mmd-shape.md": ("MMD", 9),
+    "mmd-edge-quote.md": ("MMD", 5),
+    "mmd-link.md": ("MMD", 12),
+    "mmd-long-arrow.md": ("MMD", 3),
 }
 
 
@@ -162,6 +182,38 @@ def main() -> int:
         owners = {line.split(":")[0] for line in out.splitlines() if " DUP " in line}
         if owners != {pair[1]}:
             failures.append(f"settled ADR with a guide: expected DUP on the guide only, got:\n{out}")
+
+    # A diagram's legend repeats by design, so two identical legends are not a duplicate fact,
+    # whether the key names colors or only line styles. The same paragraph without a diagram
+    # above it is still checked.
+    legend = "**Legend:** \U0001F7E6 Platform team \u00b7 thick line = a call that crosses the boundary between the two cloud projects\n"
+    line_key = "**Legend:** thick line = a call that crosses the boundary between the two cloud projects\n"
+    with tempfile.TemporaryDirectory() as tmp:
+        colored, keyed, plain = [], [], []
+        for prefix in ("A", "B"):
+            nodes = "".join(f'  {prefix}{n}["{prefix}{n}<br/>[SERVICE]"]\n' for n in range(4))
+            edges = "".join(f'  {prefix}{n} -->|"calls"| {prefix}{n + 1}\n' for n in range(3))
+            table = "".join(f"| {prefix}{n} | - |\n" for n in range(4))
+            uncolored = f"Lead.\n\n```mermaid\ngraph TD\n{nodes}{edges}"
+            diagram = (f"{uncolored}  class {','.join(f'{prefix}{n}' for n in range(4))} own\n"
+                       f"  classDef own {PALETTE_OWN}\n```\n\n")
+            nodes_table = f"| Node | Source |\n| --- | --- |\n{table}\n"
+            head = "<!--\nPurpose: Example.\nType: explanation\n-->\n\n# Example\n\nAudience: the self-test.\n\n"
+            for group, body in ((colored, diagram + legend + "\n" + nodes_table),
+                                (keyed, f"{uncolored}```\n\n{line_key}\n{nodes_table}"), (plain, legend)):
+                path = os.path.join(tmp, f"{prefix}-{len(colored) + len(keyed) + len(plain)}.md")
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write(head + body)
+                group.append(path)
+        code, out = run(colored, tmp)
+        if " DUP " in out or " MMD " in out:
+            failures.append(f"identical legends under colored diagrams should pass, got:\n{out}")
+        code, out = run(keyed, tmp)
+        if " DUP " in out or " MMD " in out:
+            failures.append(f"identical line-style legends under plain diagrams should pass, got:\n{out}")
+        code, out = run(plain, tmp)
+        if "12-word run" not in out or "sentence restates" not in out:
+            failures.append(f"a legend paragraph with no diagram above it should still raise both DUP checks, got:\n{out}")
 
     examples = reference_examples()
     if len(examples) < 2:

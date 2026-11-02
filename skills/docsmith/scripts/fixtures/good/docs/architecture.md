@@ -34,7 +34,14 @@ graph TD
   Route -->|"reserves stock"| Inventory
   Route -->|"stores orders"| Store
   Inventory -->|"queries"| Warehouse
+
+  class Browser,Route,Inventory,Store,Identity,Warehouse own
+  class Web,Orders boundary
+  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef boundary fill:#f9ab0014,stroke:#f9ab00
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |
@@ -50,4 +57,4 @@ graph TD
 The UI never writes inventory directly. The order API coordinates the
 reservation so one component owns the transaction boundary.
 
-Sign-in has its own guide: [authentication.md](authentication.md).
+Sign-in has its own guide: [security/authentication.md](security/authentication.md).

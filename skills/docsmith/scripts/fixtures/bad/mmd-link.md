@@ -29,7 +29,12 @@ graph TD
   A e1@-->|"calls"| B
   A -->|"calls"| B & C
   A -->|"calls"| B -->|"calls"| C
+
+  class A,B,C,D own
+  classDef own fill:#1a73e833,stroke:#1a73e8
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |

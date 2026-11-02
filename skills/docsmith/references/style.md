@@ -128,4 +128,6 @@ their own.
 | `adr` | 80 |
 | `glossary` | none |
 
-Past the cap, split by topic into a linked file. Never trim meaning to fit.
+A cap counts every line outside Mermaid fences, so the color a diagram must
+carry never pushes prose out. Past the cap, split by topic into a linked
+file. Never trim meaning to fit.

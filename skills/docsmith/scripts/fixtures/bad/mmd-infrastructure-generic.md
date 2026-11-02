@@ -18,7 +18,12 @@ graph TD
   Project -->|"hosts"| App
   App -->|"writes"| Store
   Job -->|"migrates"| Store
+
+  class Project,App,Job,Store own
+  classDef own fill:#1a73e833,stroke:#1a73e8
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |

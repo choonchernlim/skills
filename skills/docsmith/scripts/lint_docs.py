@@ -27,6 +27,8 @@ TYPES = {
     "adr": 80,
     "glossary": None,
 }
+# Agent instruction files sit beside guides, often in docs/, but instruct agents, not readers.
+AGENT_FILES = {"AGENTS.md", "CLAUDE.md"}
 GUIDE_TYPES = {"how-to", "reference", "explanation", "index", "requirements"}
 APPLICATION_MERMAID_TYPES = {
     "PERSON", "TEAM", "UI", "API", "AGENT", "TOOL", "SERVICE", "SYSTEM", "DATA", "DATABASE",
@@ -53,16 +55,28 @@ VIEW_OWNERS = {
 # Mermaid wraps a boundary title at 200 pixels and hides the second line behind
 # the first node. 24 characters stay on one line in every renderer font.
 BOUNDARY_TITLE_MAX = 24
-# Optional node color. Each fill is a 20% tint over the viewer background and
-# the text keeps the viewer theme's color, so a node reads in a light or dark
-# theme. The swatch names the class in the legend line under the diagram.
-PALETTE = {
-    "own": ("\U0001F7E6", "fill:#1a73e833,stroke:#1a73e8"),
-    "peer": ("\U0001F7E9", "fill:#18803833,stroke:#188038"),
-    "platform": ("\U0001F7E7", "fill:#e3740033,stroke:#e37400"),
-    "vendor": ("\u2B1C", "fill:#5f636833,stroke:#5f6368"),
-    "model": ("\U0001F7EA", "fill:#9334e633,stroke:#9334e6,stroke-width:3px"),
+# Every flowchart node takes one owner color: a 20% tint of the base color
+# with a solid stroke, so a node reads in a light or dark theme and the text
+# keeps the viewer theme's color. The swatch names the class in the legend line
+# under the diagram. Each entry is (swatch, base color, extra style).
+COLORS = {
+    "own": ("\U0001F7E6", "1a73e8", ""),
+    "peer": ("\U0001F7E9", "188038", ""),
+    "platform": ("\U0001F7E7", "e37400", ""),
+    "vendor": ("\u2B1C", "5f6368", ""),
+    "model": ("\U0001F7EA", "9334e6", ",stroke-width:3px"),
 }
+PALETTE = {name: (swatch, f"fill:#{base}33,stroke:#{base}{extra}") for name, (swatch, base, extra) in COLORS.items()}
+# A boundary takes a yellow outline over a near-clear fill, so the tinted nodes
+# inside it keep their color. It has no swatch: the Node table names its TYPE.
+BOUNDARY_STYLE = "fill:#f9ab0014,stroke:#f9ab00"
+CLASS_STYLES = {**{name: style for name, (_, style) in PALETTE.items()}, "boundary": BOUNDARY_STYLE}
+# A sequence diagram puts its participants in owner bands. Mermaid reads '#' in
+# a box line as a comment, so a band takes the rgba form of the owner's tint.
+BAND_COLORS = tuple(
+    f"rgba({int(base[0:2], 16)},{int(base[2:4], 16)},{int(base[4:6], 16)},0.2)"
+    for name, (_, base, _) in COLORS.items() if name != "model"
+)
 
 BANNED_WORDS = [
     "just", "simply", "easy", "easily", "trivial", "straightforward", "painless",
@@ -349,15 +363,19 @@ def check_toc(doc: Doc, blocks: list[Block]) -> None:
         doc.add(toc_list.start + 1, "TOC", f"Table of Contents entries must match the H2 headings in order: expected {expected}")
 
 
-def check_cap(doc: Doc) -> None:
-    if doc.doc_type is None:
-        widest = max(c for c in TYPES.values() if c)
-        if len(doc.lines) > widest:
-            doc.add(widest + 1, "CAP", f"{len(doc.lines)} lines exceeds even the widest cap ({widest}); declare a Type and split by topic")
+def check_cap(doc: Doc, blocks: list[Block]) -> None:
+    # A cap bounds what a reader reads, so Mermaid source does not count: the
+    # palette lines a diagram must carry never force prose out of a guide.
+    diagram = {i for b in blocks if b.kind == "fence" and b.lang == "mermaid" for i in range(b.start, b.start + len(b.lines))}
+    prose = [i for i in range(len(doc.lines)) if i not in diagram]
+    cap = TYPES.get(doc.doc_type) if doc.doc_type else max(c for c in TYPES.values() if c)
+    if not cap or len(prose) <= cap:
         return
-    cap = TYPES.get(doc.doc_type)
-    if cap and len(doc.lines) > cap:
-        doc.add(cap + 1, "CAP", f"{len(doc.lines)} lines exceeds the {cap}-line cap for type '{doc.doc_type}'; split by topic")
+    if doc.doc_type:
+        message = f"exceeds the {cap}-line cap for type '{doc.doc_type}'; split by topic"
+    else:
+        message = f"exceeds even the widest cap ({cap}); declare a Type and split by topic"
+    doc.add(prose[cap] + 1, "CAP", f"{len(prose)} lines outside diagrams {message}")
 
 
 def check_fences(doc: Doc, blocks: list[Block]) -> None:
@@ -571,7 +589,7 @@ def check_mermaid(doc: Doc, blocks: list[Block], root: str) -> None:
                 # Reported here, so the stray copy is not also a duplicate fact.
                 doc.legends.add(extra.start)
         if legend and not colors and len(legend.lines) == 1:
-            # A line-style key under a plain diagram repeats by design too.
+            # A line-style key under a sequence or ER diagram repeats by design too.
             doc.legends.add(legend.start)
         if colors and legend is None:
             doc.add(line_no, "MMD", "a colored diagram is followed directly by a '**Legend:**' line")
@@ -583,7 +601,7 @@ def check_mermaid(doc: Doc, blocks: list[Block], root: str) -> None:
                 if (name in colors) != (swatch in legend.lines[0]):
                     doc.add(legend.start + 1, "MMD", f"legend names the '{name}' swatch {swatch} exactly when the diagram uses that class")
         elif legend and any(swatch in legend.lines[0] for swatch, _ in PALETTE.values()):
-            doc.add(legend.start + 1, "MMD", "legend names a palette swatch, but the diagram above it has no color")
+            doc.add(legend.start + 1, "MMD", "legend names a palette swatch, but no node above it takes a palette class; a sequence diagram's band titles name its owners")
         sources: dict[str, str] = {}
         boundary_rows: dict[str, str] = {}
         for r in after[0].lines[2:]:
@@ -737,22 +755,22 @@ def check_colors(doc: Doc, line_no: int, body: list[str], flowchart: bool) -> se
             doc.add(line_no, "MMD", "':::' is not allowed; assign a palette class with a 'class' line")
             invalid = True
         if keyword and keyword.group(1) in ("style", "linkStyle"):
-            doc.add(line_no, "MMD", f"'{keyword.group(1)}' is not allowed; only palette classes add color, and boundaries and edges keep the viewer theme")
+            doc.add(line_no, "MMD", f"'{keyword.group(1)}' is not allowed; only palette classes add color, and edges keep the viewer theme")
             invalid = True
             continue
         if keyword and not flowchart:
-            doc.add(line_no, "MMD", "only a 'graph TD' diagram takes color")
+            doc.add(line_no, "MMD", "only a 'graph TD' diagram takes classes; a sequence diagram uses owner bands")
             invalid = True
             continue
         if keyword and keyword.group(1) == "classDef":
             m = re.match(r"^classDef\s+(\w+)\s+(\S+)$", s)
             name = m.group(1) if m else ""
             declared.add(name)
-            if name not in PALETTE:
-                doc.add(line_no, "MMD", f"classDef must be one of the palette classes {', '.join(PALETTE)}: '{s[:50]}'")
+            if name not in CLASS_STYLES:
+                doc.add(line_no, "MMD", f"classDef must be one of the palette classes {', '.join(CLASS_STYLES)}: '{s[:50]}'")
                 invalid = True
-            elif m.group(2) != PALETTE[name][1]:
-                doc.add(line_no, "MMD", f"classDef {name} must be exactly '{PALETTE[name][1]}', with nothing after it")
+            elif m.group(2) != CLASS_STYLES[name]:
+                doc.add(line_no, "MMD", f"classDef {name} must be exactly '{CLASS_STYLES[name]}', with nothing after it")
                 invalid = True
             else:
                 defined.add(name)
@@ -790,17 +808,20 @@ def check_colors(doc: Doc, line_no: int, body: list[str], flowchart: bool) -> se
     for name in sorted(used - declared):
         doc.add(line_no, "MMD", f"class '{name}' has no palette classDef in this diagram")
     for ident, names in assigned.items():
-        if ident in boundaries:
-            doc.add(line_no, "MMD", f"boundary '{ident}' takes no color; a tinted frame blends into the tinted nodes inside it")
+        if len(names) > 1:
+            doc.add(line_no, "MMD", f"'{ident}' takes one class, found {', '.join(names)}")
+        elif ident in boundaries:
+            if names[0] != "boundary":
+                doc.add(line_no, "MMD", f"boundary '{ident}' takes the boundary class; a tinted frame blends into the tinted nodes inside it")
         elif ident not in types and not skipped:
             doc.add(line_no, "MMD", f"class line names '{ident}', which is not a node")
-        elif len(names) > 1:
-            doc.add(line_no, "MMD", f"'{ident}' takes one class, found {', '.join(names)}")
-        elif (names[0] == "model") != (types[ident] == "AGENT"):
+        elif names[0] == "boundary":
+            doc.add(line_no, "MMD", f"'{ident}': the boundary class marks subgraphs only; give the node its owner's class")
+        elif (names[0] == "model") != (types.get(ident) == "AGENT"):
             doc.add(line_no, "MMD", f"'{ident}': the model class marks every [AGENT] node and nothing else")
-    missing = [ident for ident in types if ident not in assigned]
-    if assigned and missing and not invalid:
-        doc.add(line_no, "MMD", f"color every node or none; uncolored: {', '.join(missing)}")
+    missing = [ident for ident in [*types, *sorted(boundaries)] if ident not in assigned]
+    if missing and not invalid:
+        doc.add(line_no, "MMD", f"color every node with its owner's class and every boundary with 'boundary'; uncolored: {', '.join(missing)}")
     return used & declared
 
 
@@ -932,12 +953,36 @@ def check_sequence(doc: Doc, line_no: int, body: list[str]) -> tuple[list[str], 
     idents: dict[str, str] = {}
     edges: list[tuple[str, str, str]] = []
     messages = 0
+    in_band = False
     for l in body:
         s = l.strip()
+        if re.match(r"box\b", s):
+            if in_band:
+                doc.add(line_no, "MMD", "close a band with 'end' before opening the next; bands do not nest")
+            bm = re.match(r"^box\s+(rgba\([^)]*\))\s+(\S.*)$", s)
+            if not bm:
+                doc.add(line_no, "MMD", f"band must be 'box <palette rgba> <owner name>': '{s[:50]}'")
+            elif bm.group(1) not in BAND_COLORS:
+                doc.add(line_no, "MMD", f"band color must be an owner palette color, one of {', '.join(BAND_COLORS)}: '{bm.group(1)}'")
+            in_band = True
+            continue
+        if in_band and s == "end":
+            in_band = False
+            continue
+        cm = re.match(r"create\s+(?:participant|actor)\s+(\w+)", s)
+        if cm:
+            doc.add(line_no, "MMD", f"'create' places '{cm.group(1)}' outside every owner band; declare it up front in its band")
+            idents[cm.group(1)] = cm.group(1)
+            continue
         pm = re.match(r"^(actor|participant)\s+(\w+)(?:\s+as\s+(.+))?$", s)
+        if in_band and not pm:
+            doc.add(line_no, "MMD", f"a band holds participant lines only; close it with 'end' first: '{s[:40]}'")
+            continue
         if pm:
             kw, ident, label = pm.groups()
             label = label or ident
+            if not in_band:
+                doc.add(line_no, "MMD", f"participant '{ident}' sits outside an owner band; wrap it in 'box <palette rgba> <owner name>' ... 'end'")
             lm = TYPED_LABEL_RX.match(label)
             if not lm:
                 doc.add(line_no, "MMD", f"participant label must be 'Title<br/>[TYPE]': '{label}'")
@@ -958,12 +1003,18 @@ def check_sequence(doc: Doc, line_no: int, body: list[str]) -> tuple[list[str], 
         if mm:
             messages += 1
             src, dst, text = mm.groups()
+            for ident in dict.fromkeys((src, dst)):
+                if ident not in idents:
+                    doc.add(line_no, "MMD", f"'{ident}' is not a declared participant; declare it inside its owner's band")
+                    idents[ident] = ident
             if not STEP_RX.match(text):
                 doc.add(line_no, "MMD", f"sequence message is not numbered '1: text': '{text[:40]}'")
             action = re.sub(r"^\d+[a-z]?[.:]\s*", "", text).strip().lower()
-            edges.append((idents.get(src, src), idents.get(dst, dst), action))
+            edges.append((idents[src], idents[dst], action))
         elif re.match(r"^\w+\s*-{3,}", s):
             doc.add(line_no, "MMD", f"long arrows are not portable; use '->>': '{s[:40]}'")
+    if in_band:
+        doc.add(line_no, "MMD", "a band is never closed; end it with 'end' after its last participant")
     if len(titles) > 7:
         doc.add(line_no, "MMD", f"{len(titles)} participants exceeds the cap of 7; split the flow")
     if messages > 12:
@@ -971,11 +1022,25 @@ def check_sequence(doc: Doc, line_no: int, body: list[str]) -> tuple[list[str], 
     return titles, edges
 
 
+def docs_parts(path: str) -> list[str] | None:
+    """Return the path parts below the nearest enclosing docs/ folder, or None outside one.
+
+    The nearest folder wins, so the answer holds whatever --root or working
+    directory the lint runs from, and a repo checked out under a folder named
+    docs still resolves its own docs/ tree.
+    """
+    folders = os.path.abspath(path).split(os.sep)[:-1]
+    if "docs" not in folders:
+        return None
+    cut = len(folders) - folders[::-1].index("docs")
+    return os.path.abspath(path).split(os.sep)[cut:]
+
+
 def check_view(doc: Doc) -> None:
-    p = os.path.abspath(doc.path)
-    if os.path.basename(os.path.dirname(p)) != "docs":
+    # A viewpoint owner keeps its canonical name in any domain folder under docs/.
+    if docs_parts(doc.path) is None:
         return
-    name = os.path.basename(p)
+    name = os.path.basename(doc.path)
     owned = next((family for family, owner in VIEW_OWNERS.items() if owner == name), None)
     if owned is None:
         return
@@ -1112,15 +1177,17 @@ def guess_type(path: str, root: str) -> str | None:
     parent = os.path.basename(os.path.dirname(p))
     if re.match(r"^\d{4}-.*\.md$", name) and parent in ("adrs", "adr", "decisions"):
         return "adr"
+    under_docs = docs_parts(p)
     if name.lower() == "readme.md":
-        if parent == "docs":
+        # docs/README.md routes to the domains, and each docs/<domain>/README.md to its guides.
+        if under_docs is not None and len(under_docs) <= 2:
             return "index"
         d = os.path.dirname(p)
         markers = ("package.json", "pyproject.toml", "run.sh", ".git", "Cargo.toml", "go.mod")
         if any(os.path.exists(os.path.join(d, m)) for m in markers) or rel == "README.md":
             return "readme-project"
         return "readme-folder"
-    if parent == "docs":
+    if under_docs == [name]:
         if name == "glossary.md":
             return "glossary"
         if name.startswith("requirements"):
@@ -1176,7 +1243,7 @@ def lint_file(path: str, root: str, forced: str | None, heading_cache: dict[str,
     check_title(doc, blocks)
     check_headings(doc, blocks)
     check_toc(doc, blocks)
-    check_cap(doc)
+    check_cap(doc, blocks)
     check_fences(doc, blocks)
     check_density(doc, blocks)
     check_words(doc, blocks)
@@ -1204,9 +1271,11 @@ def main(argv: list[str]) -> int:
         if not os.path.isfile(p):
             print(f"{p}:0: FILE not found", file=sys.stderr)
             return 2
-        docs.append(lint_file(p, root, args.type, cache))
+        if os.path.basename(p) not in AGENT_FILES:
+            docs.append(lint_file(p, root, args.type, cache))
     primary = {os.path.abspath(d.path) for d in docs}
-    scope = [lint_file(p, root, None, cache) for p in expand_scope(args.dup_scope) if os.path.abspath(p) not in primary]
+    scope = [lint_file(p, root, None, cache) for p in expand_scope(args.dup_scope)
+             if os.path.abspath(p) not in primary and os.path.basename(p) not in AGENT_FILES]
     # Scope files go first so they own a shared fact and the finding lands on the file being linted.
     # A settled ADR cannot be reworded, so it owns a shared fact ahead of every editable file.
     everyone = scope + sorted(docs, key=lambda d: not d.settled)

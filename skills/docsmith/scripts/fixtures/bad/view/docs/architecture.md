@@ -11,8 +11,10 @@ The owner file holds another family.
 
 ```mermaid
 sequenceDiagram
-  participant Customer as Customer<br/>[PERSON]
-  participant Route as Order API<br/>[API]
+  box rgba(26,115,232,0.2) Example team
+    participant Customer as Customer<br/>[PERSON]
+    participant Route as Order API<br/>[API]
+  end
   Customer->>Route: 1: Create the order
 ```
 

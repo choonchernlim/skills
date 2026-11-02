@@ -38,7 +38,16 @@ graph TD
   Network -->|"connects"| Service
   Secrets -->|"supplies keys"| Service
   Service -->|"writes"| Store
+
+  class Network,Secrets peer
+  class Service,Store own
+  class Foundation,Payments boundary
+  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef peer fill:#18803833,stroke:#188038
+  classDef boundary fill:#f9ab0014,stroke:#f9ab00
 ```
+
+**Legend:** 🟦 Payments team · 🟩 Platform team
 
 | Node | Source |
 | --- | --- |

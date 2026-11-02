@@ -19,7 +19,7 @@ only when their dependency is the point of the diagram.
 | Node label | `Title<br/>[TYPE]`, quoted. Title is one to three words; TYPE is from the closed list below. |
 | Shape | Chosen by TYPE: `id["..."]` rectangle, `id[("...")]` cylinder, `id[/"..."/]` parallelogram. |
 | Subgraph | A real typed boundary in the shared [boundary format](mermaid.md#boundaries). |
-| Color | Optional, from the shared [palette](mermaid.md#color). |
+| Color | Required, from the shared [palette](mermaid.md#color). |
 | Edge label | Required on every edge, quoted, one to four words, a verb: `-->\|"validates"\|`. |
 | Step numbers | Prefix edge labels `1:`, `2:` when the diagram is a flow. Numbers mean order, never ownership. |
 | Forbidden | `click`, horizontal flowcharts, decorative subgraphs, ASCII diagrams, and anything outside the [portable syntax](mermaid.md#portable-syntax). |
@@ -75,8 +75,10 @@ graph TD
 
   class Browser,Route,Inventory,Store own
   class Warehouse peer
+  class Web,Orders boundary
   classDef own fill:#1a73e833,stroke:#1a73e8
   classDef peer fill:#18803833,stroke:#188038
+  classDef boundary fill:#f9ab0014,stroke:#f9ab00
 ```
 
 **Legend:** 🟦 Orders team · 🟩 Warehouse team

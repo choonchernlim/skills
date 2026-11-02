@@ -57,7 +57,8 @@ Every diagram appears in this order:
 
 1. One lead sentence states what the reader will learn.
 2. One fenced `mermaid` block contains one connected idea.
-3. When the diagram uses [color](#color), one `**Legend:**` line names each color. It also names each line style the reader must learn, such as a thick or dotted line `[judgement]`.
+3. Under a `graph TD`, one `**Legend:**` line names each [color](#color) swatch and each line style to learn, such as a thick line `[judgement]`.
+   Band titles key a sequence diagram.
 4. A numbered list explains numbered messages or edges.
 5. A `Node | Source` table maps every node or entity to its owner.
 
@@ -98,9 +99,11 @@ portability. The lint enforces this table; trust it over the render.
 
 ## Color
 
-Color is optional and only for `graph TD`. Use it when a diagram crosses
-owners or holds model calls, so a reader sees who owns what without reading
-every tag. Color adds to the `[TYPE]` tag; it never replaces it.
+Every `graph TD` node takes its owner's color, so a reader sees who owns what
+without reading every tag, and the same box reads the same in every diagram.
+Color adds to the `[TYPE]` tag; it never replaces it. A sequence diagram
+carries the same owner colors as bands, see the
+[runtime reference](mermaid-runtime.md#owner-bands). An `erDiagram` stays plain.
 
 | Class | Swatch | Marks | Definition |
 | --- | --- | --- | --- |
@@ -109,27 +112,32 @@ every tag. Color adds to the `[TYPE]` tag; it never replaces it.
 | `platform` | 🟧 | the organization outside both teams: its people and shared platforms | `fill:#e3740033,stroke:#e37400` |
 | `vendor` | ⬜ | a vendor-managed service, such as a cloud API | `fill:#5f636833,stroke:#5f6368` |
 | `model` | 🟪 | a model call, whoever owns it | `fill:#9334e633,stroke:#9334e6,stroke-width:3px` |
+| `boundary` | none | every subgraph: a yellow outline over a near-clear fill | `fill:#f9ab0014,stroke:#f9ab00` |
 
-- Color every node or none. A plain node in a colored diagram has no owner to read.
+- Color every node and every boundary. A plain node has no owner to read.
 - Give every `[AGENT]` node the `model` class, and no other node.
+- Give every subgraph the `boundary` class, and no node. Its near-clear fill
+  keeps the tinted nodes inside it readable.
 - Assign each node one class with a `class id,id name` line, and copy each
-  used `classDef` exactly. Never use `:::`.
-- Never color a boundary or an edge. Color marks one node's owner, and a
-  tinted frame blends into the tinted nodes inside it.
+  used `classDef` exactly. Never use `:::`, `style`, or `linkStyle`.
+- Never color an edge. Line weight and dashes carry edge meaning.
 - Never fix a node's text color. Each fill is a 20% tint, so the viewer
   theme's text color stays readable, and JetBrains previews override a fixed
   label color anyway.
 - Follow the diagram directly with one `**Legend:**` line, so the reader
-  meets the key with the colors. It names each swatch used, and no other,
-  with the real owner names.
+  meets the key with the colors. It names each palette swatch used, and no
+  other, with real owner names.
+  - `boundary` has no swatch; the Node table names each boundary's TYPE.
 
 ```text
 graph TD
   ...
   class Api,Store own
   class Planner model
+  class Backend boundary
   classDef own fill:#1a73e833,stroke:#1a73e8
   classDef model fill:#9334e633,stroke:#9334e6,stroke-width:3px
+  classDef boundary fill:#f9ab0014,stroke:#f9ab00
 ```
 
 ```text

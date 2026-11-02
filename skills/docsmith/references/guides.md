@@ -14,8 +14,10 @@ scaffold an empty guide so the set looks complete.
 ## Table of Contents
 
 - [Roles](#roles)
+- [Domain Folders](#domain-folders)
 - [Type Profiles](#type-profiles)
 - [Index Profile](#index-profile)
+- [Domain Index Profile](#domain-index-profile)
 - [Glossary Profile](#glossary-profile)
 - [Fact Ownership](#fact-ownership)
 
@@ -50,6 +52,22 @@ A topic guide owns one cross-cutting subject in full, such as
 - The topic guide never repeats an overview relationship; it expands one.
 - Create a topic guide when a subject needs detail from two or more viewpoints.
 
+## Domain Folders
+
+Once `docs/` outgrows one screen of guides, group them into domain folders,
+such as `docs/orders/` and `docs/operations/`. A domain is an area of the
+product or of the work, never a Diátaxis type: its folder holds every how-to,
+reference, and explanation about that area.
+
+- The index, glossary, requirements, and `adrs/` stay at the `docs/` root.
+- A role file keeps its canonical name inside its domain, such as
+  `docs/architecture/runtime-flows.md`. The lint finds it there by name.
+- Each domain folder has a `README.md` of type `index`, in the
+  [domain index profile](#domain-index-profile).
+- A guide lives in exactly one domain. When two fit, pick the one whose
+  readers change the code it describes, and link from the other.
+- Move a guide with `git mv`, then fix every inbound link in the same change.
+
 ## Type Profiles
 
 Every guide starts the same way, then follows its type.
@@ -81,7 +99,7 @@ to the how-to guide.
 
 ## Index Profile
 
-Cap: 120 lines. Three sections, in this order.
+Cap: 120 lines. Three sections, in this order, after an optional Domains table.
 
 ```markdown
 ## First Week
@@ -102,10 +120,32 @@ Cap: 120 lines. Three sections, in this order.
 | --- | --- |
 ```
 
+With domain folders, a `## Domains` table (Domain, Covers) comes first and
+links each domain README; By Task rows then point into the domains.
 The First Week list has 4 to 6 items, each "read X, then you can Y". The
 index does not repeat the Resources table from the root README; it links to
 it. Historical folders (`specs/`, `plans/`) get one row each and a sentence
 saying the current guides win on conflict.
+
+## Domain Index Profile
+
+Cap: 120 lines. A domain folder's `README.md` routes inside that domain only.
+
+```markdown
+# Orders
+
+Audience: anyone looking for a guide about taking and fulfilling orders.
+
+## Guides
+
+| Guide | Type | Read It To |
+| --- | --- | --- |
+| [order-flow.md](order-flow.md) | explanation | Trace one order from cart to shipment |
+```
+
+List every guide in the folder, one row each, in reading order. The root
+index links each domain folder by its README and never repeats a domain's
+guide table; its By Task rows may still link one guide each.
 
 ## Glossary Profile
 

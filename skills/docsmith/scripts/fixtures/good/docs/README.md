@@ -7,6 +7,12 @@ Type: index
 
 Audience: anyone working in or reviewing the sample shop.
 
+## Domains
+
+| Domain | Covers |
+| --- | --- |
+| [security/](security/README.md) | Signing in and keeping a session |
+
 ## First Week
 
 1. Read [architecture.md](architecture.md). You can name the deployments and who owns each.
@@ -23,7 +29,7 @@ Audience: anyone working in or reviewing the sample shop.
 | Look up a payload field | [contracts.md](contracts.md) |
 | Look up a table | [data-model.md](data-model.md) |
 | Trace an order | [runtime-flows.md](runtime-flows.md) |
-| Understand login | [authentication.md](authentication.md) |
+| Understand login | [security/authentication.md](security/authentication.md) |
 | See what each repository provisions | [infrastructure.md](infrastructure.md) |
 
 ## Decisions and History

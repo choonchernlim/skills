@@ -23,6 +23,7 @@ skill's folder.
 | README at a repo, package, or runnable-project root | `readme-project` | [references/readme.md](references/readme.md) |
 | README inside a source directory | `readme-folder` | [references/readme.md](references/readme.md) |
 | `docs/README.md` | `index` | [references/guides.md](references/guides.md) |
+| `docs/<domain>/README.md` | `index`, domain index profile | [references/guides.md](references/guides.md#domain-index-profile) |
 | `docs/glossary.md` | `glossary` | [references/guides.md](references/guides.md) |
 | A procedure: operations, a playbook, a runbook | `how-to` | [references/guides.md](references/guides.md) |
 | Field-by-field facts: contracts, data model, config | `reference` | [references/guides.md](references/guides.md) |
@@ -43,7 +44,7 @@ Run the lint first on the existing file and its siblings so the findings are
 mechanical, not impressions. Run the script; do not read it.
 
 ```bash
-python3 scripts/lint_docs.py docs/*.md README.md --dup-scope .
+python3 scripts/lint_docs.py docs/*.md docs/*/*.md README.md --dup-scope .
 ```
 
 `--dup-scope .` lets untouched files join the cross-file checks without reporting on them.
@@ -81,14 +82,14 @@ Run every check on the final text of every touched file.
    the cross-file duplicate check runs. The command must exit 0.
 
    ```bash
-   python3 scripts/lint_docs.py docs/*.md docs/adrs/*.md README.md --dup-scope .
+   python3 scripts/lint_docs.py docs/*.md docs/*/*.md README.md --dup-scope .
    ```
 
 2. **Render every Mermaid block and inspect each image**, per the mermaid reference.
    The render proves layout only. The lint proves the syntax is portable.
 
    ```bash
-   python3 scripts/render_mermaid.py docs/*.md README.md
+   python3 scripts/render_mermaid.py docs/*.md docs/*/*.md README.md
    ```
 
 3. **Read it as the new developer.** For each touched guide, answer: what
@@ -106,6 +107,7 @@ Run every check on the final text of every touched file.
   ADR. A format-only pass may normalize its headings and status table.
 - The skill audits and documents; it never modifies source code to match
   the docs.
-- `specs/` and `plans/` are out of scope; leave those files alone.
+- `specs/` and `plans/` are out of scope; leave those files alone, except
+  to fix a link path to a guide you moved.
 - When editing this skill itself, keep it project agnostic: its templates,
   examples, and fixtures use invented names, never names from a real repository.

@@ -16,7 +16,12 @@ graph TD
   A["1. One<br/>[UI]"] -->|"calls with a very long label"| B["Two"]
   B --> C["Three<br/>[WIDGET]"]
   C -->|"calls"| D[("Four<br/>[DATA]")]
+
+  class A,B,C,D own
+  classDef own fill:#1a73e833,stroke:#1a73e8
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |

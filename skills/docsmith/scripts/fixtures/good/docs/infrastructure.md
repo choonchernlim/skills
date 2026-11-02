@@ -24,7 +24,14 @@ graph TD
   Project -->|"hosts"| App
   App -->|"writes"| Store
   Job -->|"migrates"| Store
+
+  class Project,App,Job,Store own
+  class Foundation,Workload boundary
+  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef boundary fill:#f9ab0014,stroke:#f9ab00
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |

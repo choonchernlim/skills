@@ -21,7 +21,14 @@ graph TD
   One -->|"calls"| Two
   Two -->|"calls"| Three
   Three -->|"calls"| Four
+
+  class One,Two,Three,Four own
+  class App boundary
+  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef boundary fill:#f9ab0014,stroke:#f9ab00
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |

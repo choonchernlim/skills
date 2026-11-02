@@ -34,7 +34,12 @@ graph TD
   D -->|"calls"| I
   D -->|"calls"| J
   D -->|"calls"| K
+
+  class A,B,C,D,E,F,G,H,I,J,K own
+  classDef own fill:#1a73e833,stroke:#1a73e8
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |

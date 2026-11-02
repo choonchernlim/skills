@@ -19,7 +19,11 @@ graph TD
   One -->|"calls"| Two
   Two -->|"calls"| Three
   Three -->|"calls"| Four
+  class One,Two,Three,Four own
+  classDef own fill:#1a73e833,stroke:#1a73e8
 ```
+
+**Legend:** 🟦 Platform team
 
 | Node | Source |
 | --- | --- |

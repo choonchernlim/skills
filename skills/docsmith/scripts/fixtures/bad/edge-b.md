@@ -18,7 +18,12 @@ graph TD
   Alpha -->|"invokes"| Beta
   Beta -->|"notifies"| Kappa
   Kappa -->|"notifies"| Sigma
+
+  class Alpha,Beta,Kappa,Sigma own
+  classDef own fill:#1a73e833,stroke:#1a73e8
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |

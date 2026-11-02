@@ -14,10 +14,12 @@ every call.
 
 ```mermaid
 sequenceDiagram
-  participant Customer as Customer<br/>[PERSON]
-  participant Browser as Storefront UI<br/>[UI]
-  participant Identity as Identity Provider<br/>[SYSTEM]
-  participant Route as Order API<br/>[API]
+  box rgba(26,115,232,0.2) Example team
+    participant Customer as Customer<br/>[PERSON]
+    participant Browser as Storefront UI<br/>[UI]
+    participant Identity as Identity Provider<br/>[SYSTEM]
+    participant Route as Order API<br/>[API]
+  end
 
   Customer->>Browser: 1: Enter credentials
   Browser->>Identity: 2: Request a token
@@ -30,9 +32,9 @@ sequenceDiagram
 | Node | Source |
 | --- | --- |
 | Customer | - |
-| Storefront UI | [../src/](../src/) |
+| Storefront UI | [../../src/](../../src/) |
 | Identity Provider | - |
-| Order API | [../src/api.ts](../src/api.ts) |
+| Order API | [../../src/api.ts](../../src/api.ts) |
 
 The API holds no passwords. It rejects any call whose token the identity
 provider does not confirm.

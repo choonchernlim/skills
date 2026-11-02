@@ -21,6 +21,7 @@ GOOD = os.path.join(HERE, "fixtures", "good")
 BAD = os.path.join(HERE, "fixtures", "bad")
 REFERENCES = os.path.join(HERE, "..", "references")
 PALETTE_OWN = "fill:#1a73e833,stroke:#1a73e8"
+BAND_OWN = "rgba(26,115,232,0.2)"
 
 EXPECTED = {
     "hdr.md": "HDR",
@@ -73,7 +74,10 @@ EXPECTED = {
     "mmd-color-model.md": "MMD",
     "mmd-color-legend.md": "MMD",
     "mmd-color-rules.md": "MMD",
+    "mmd-color-boundary.md": "MMD",
+    "mmd-band.md": "MMD",
     "view/docs/architecture.md": "VIEW",
+    "view/docs/orders/architecture.md": "VIEW",
     "mmd-infrastructure-generic.md": "MMD",
     "adr-settled.md": "TOC",
     "adr-proposed.md": "SENT",
@@ -100,11 +104,28 @@ EXPECTED_COUNTS = {
     "mmd-color-model.md": ("MMD", 1),
     "mmd-color-legend.md": ("MMD", 1),
     "mmd-color-rules.md": ("MMD", 20),
+    "mmd-color-boundary.md": ("MMD", 2),
+    "mmd-band.md": ("MMD", 8),
     "mmd-shape.md": ("MMD", 9),
     "mmd-edge-quote.md": ("MMD", 5),
     "mmd-link.md": ("MMD", 12),
     "mmd-long-arrow.md": ("MMD", 3),
 }
+
+
+def flowchart(prefix: str, padding: int = 0) -> tuple[str, str]:
+    """Return a lead sentence and a colored four-node diagram, and its Node table.
+
+    Padding adds comment lines inside the fence, so the diagram grows without prose.
+    """
+    names = [f"{prefix}{n}" for n in range(4)]
+    nodes = "".join(f'  {n}["{n}<br/>[SERVICE]"]\n' for n in names)
+    edges = "".join(f'  {a} -->|"calls"| {b}\n' for a, b in zip(names, names[1:]))
+    pad = "".join(f"  %% padding {n}\n" for n in range(padding))
+    diagram = (f"Lead.\n\n```mermaid\ngraph TD\n{nodes}{edges}  class {','.join(names)} own\n"
+               f"  classDef own {PALETTE_OWN}\n{pad}```\n\n")
+    table = "| Node | Source |\n| --- | --- |\n" + "".join(f"| {n} | - |\n" for n in names) + "\n"
+    return diagram, table
 
 
 def run(paths: list[str], root: str, *flags: str) -> tuple[int, str]:
@@ -184,23 +205,21 @@ def main() -> int:
             failures.append(f"settled ADR with a guide: expected DUP on the guide only, got:\n{out}")
 
     # A diagram's legend repeats by design, so two identical legends are not a duplicate fact,
-    # whether the key names colors or only line styles. The same paragraph without a diagram
-    # above it is still checked.
+    # whether the key names colors or, under a sequence diagram, only line styles. The same
+    # paragraph without a diagram above it is still checked.
     legend = "**Legend:** \U0001F7E6 Platform team \u00b7 thick line = a call that crosses the boundary between the two cloud projects\n"
     line_key = "**Legend:** thick line = a call that crosses the boundary between the two cloud projects\n"
     with tempfile.TemporaryDirectory() as tmp:
         colored, keyed, plain = [], [], []
         for prefix in ("A", "B"):
-            nodes = "".join(f'  {prefix}{n}["{prefix}{n}<br/>[SERVICE]"]\n' for n in range(4))
-            edges = "".join(f'  {prefix}{n} -->|"calls"| {prefix}{n + 1}\n' for n in range(3))
-            table = "".join(f"| {prefix}{n} | - |\n" for n in range(4))
-            uncolored = f"Lead.\n\n```mermaid\ngraph TD\n{nodes}{edges}"
-            diagram = (f"{uncolored}  class {','.join(f'{prefix}{n}' for n in range(4))} own\n"
-                       f"  classDef own {PALETTE_OWN}\n```\n\n")
-            nodes_table = f"| Node | Source |\n| --- | --- |\n{table}\n"
+            diagram, nodes_table = flowchart(prefix)
+            participants = "".join(f"    participant {prefix}{n} as {prefix}{n}<br/>[SERVICE]\n" for n in range(4))
+            messages = "".join(f"  {prefix}{n}->>{prefix}{n + 1}: {n + 1}: calls\n" for n in range(3))
+            banded = (f"Lead.\n\n```mermaid\nsequenceDiagram\n  box {BAND_OWN} Platform team\n"
+                      f"{participants}  end\n{messages}```\n\n")
             head = "<!--\nPurpose: Example.\nType: explanation\n-->\n\n# Example\n\nAudience: the self-test.\n\n"
             for group, body in ((colored, diagram + legend + "\n" + nodes_table),
-                                (keyed, f"{uncolored}```\n\n{line_key}\n{nodes_table}"), (plain, legend)):
+                                (keyed, f"{banded}{line_key}\n{nodes_table}"), (plain, legend)):
                 path = os.path.join(tmp, f"{prefix}-{len(colored) + len(keyed) + len(plain)}.md")
                 with open(path, "w", encoding="utf-8") as fh:
                     fh.write(head + body)
@@ -210,10 +229,30 @@ def main() -> int:
             failures.append(f"identical legends under colored diagrams should pass, got:\n{out}")
         code, out = run(keyed, tmp)
         if " DUP " in out or " MMD " in out:
-            failures.append(f"identical line-style legends under plain diagrams should pass, got:\n{out}")
+            failures.append(f"identical line-style legends under sequence diagrams should pass, got:\n{out}")
         code, out = run(plain, tmp)
         if "12-word run" not in out or "sentence restates" not in out:
             failures.append(f"a legend paragraph with no diagram above it should still raise both DUP checks, got:\n{out}")
+
+    # A line cap counts lines outside Mermaid fences: a 60-line diagram keeps a short ADR under
+    # its cap, and 30 more prose lines push the same ADR over it.
+    with tempfile.TemporaryDirectory() as tmp:
+        head = "<!--\nPurpose: Example.\nType: adr\n-->\n\n# ADR 0001: Example\n\n## Context and Problem Statement\n\n"
+        diagram, table = flowchart("N", padding=60)
+        body = head + diagram + "**Legend:** \U0001F7E6 Platform team\n\n" + table
+        for name, extra, want in (("short.md", "", False), ("long.md", "x\n\n" * 30, True)):
+            path = os.path.join(tmp, name)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(body + extra)
+            code, out = run([path], tmp, "--no-dup")
+            if (" CAP " in out) != want:
+                failures.append(f"line cap on {name}: expected CAP {want}, got:\n{out}")
+
+    # The docs/ folder is found from the file's own path, so the view rule holds from any --root.
+    view = os.path.join(BAD, "view", "docs", "architecture.md")
+    code, out = run([view], os.path.dirname(view))
+    if " VIEW " not in out:
+        failures.append(f"view rule with --root at docs/: expected VIEW, got:\n{out}")
 
     examples = reference_examples()
     if len(examples) < 2:

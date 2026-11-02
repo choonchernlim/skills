@@ -187,8 +187,10 @@ A sequence diagram takes a color.
 
 ```mermaid
 sequenceDiagram
-  participant A as Alpha<br/>[SERVICE]
-  participant B as Beta<br/>[SERVICE]
+  box rgba(26,115,232,0.2) Platform team
+    participant A as Alpha<br/>[SERVICE]
+    participant B as Beta<br/>[SERVICE]
+  end
   A->>B: 1: calls
   classDef own fill:#1a73e833,stroke:#1a73e8
 ```
@@ -401,7 +403,11 @@ graph TD
   One -->|"calls"| Two
   Two -->|"calls"| Three
   Three -->|"calls"| Four
+  class One,Two,Three,Four own
+  classDef own fill:#1a73e833,stroke:#1a73e8
 ```
+
+**Legend:** 🟦 Platform team
 
 | Node | Source |
 | --- | --- |
@@ -435,27 +441,23 @@ and a second line that explains more.
 | Three | - |
 | Four | - |
 
-A diagram without color carries a swatch legend.
+A sequence diagram, whose band titles name the owners, carries a swatch legend.
 
 ```mermaid
-graph TD
-  One["One<br/>[SERVICE]"]
-  Two["Two<br/>[SERVICE]"]
-  Three["Three<br/>[SERVICE]"]
-  Four["Four<br/>[SERVICE]"]
-  One -->|"calls"| Two
-  Two -->|"calls"| Three
-  Three -->|"calls"| Four
+sequenceDiagram
+  box rgba(26,115,232,0.2) Platform team
+    participant A as Alpha<br/>[SERVICE]
+    participant B as Beta<br/>[SERVICE]
+  end
+  A->>B: 1: calls
 ```
 
 **Legend:** 🟦 Platform team
 
 | Node | Source |
 | --- | --- |
-| One | - |
-| Two | - |
-| Three | - |
-| Four | - |
+| Alpha | - |
+| Beta | - |
 
 A second legend sits under the Node table.
 

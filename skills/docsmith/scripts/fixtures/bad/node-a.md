@@ -18,7 +18,12 @@ graph TD
   Omega -->|"calls"| Pi
   Pi -->|"calls"| Rho
   Rho -->|"calls"| Tau
+
+  class Omega,Pi,Rho,Tau own
+  classDef own fill:#1a73e833,stroke:#1a73e8
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |

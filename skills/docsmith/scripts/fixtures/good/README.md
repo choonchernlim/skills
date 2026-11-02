@@ -24,7 +24,12 @@ graph TD
   Customer -->|"places orders"| Shop
   Shop -->|"checks stock"| Warehouse
   Shop -->|"verifies customers"| Identity
+
+  class Customer,Shop,Warehouse,Identity own
+  classDef own fill:#1a73e833,stroke:#1a73e8
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |

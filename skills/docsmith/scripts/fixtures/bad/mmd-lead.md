@@ -14,7 +14,12 @@ graph TD
   A["One<br/>[UI]"] -->|"calls"| B["Two<br/>[API]"]
   B -->|"calls"| C["Three<br/>[SERVICE]"]
   C -->|"calls"| D["Four<br/>[DATA]"]
+
+  class A,B,C,D own
+  classDef own fill:#1a73e833,stroke:#1a73e8
 ```
+
+**Legend:** 🟦 Example team
 
 | Node | Source |
 | --- | --- |

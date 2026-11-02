@@ -13,10 +13,12 @@ The API reserves stock before it accepts the cart.
 
 ```mermaid
 sequenceDiagram
-  participant Customer as Customer<br/>[PERSON]
-  participant Browser as Storefront UI<br/>[UI]
-  participant Route as Order API<br/>[API]
-  participant Inventory as Inventory Client<br/>[SERVICE]
+  box rgba(26,115,232,0.2) Example team
+    participant Customer as Customer<br/>[PERSON]
+    participant Browser as Storefront UI<br/>[UI]
+    participant Route as Order API<br/>[API]
+    participant Inventory as Inventory Client<br/>[SERVICE]
+  end
 
   Customer->>Browser: 1: Submit the cart
   Browser->>Route: 2: Create the order

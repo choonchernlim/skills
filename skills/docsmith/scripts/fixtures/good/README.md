@@ -16,27 +16,23 @@ The shop sits between its customers and two outside systems.
 
 ```mermaid
 graph TD
-  Customer["Customer<br/>[PERSON]"]
-  Shop["Sample Shop<br/>[SYSTEM]"]
-  Warehouse["Warehouse System<br/>[SYSTEM]"]
+  %%{init: {"themeCSS": ".cluster-label, .cluster-label div, .cluster-label span, .cluster-label p { text-align: center !important; }", "flowchart": {"curve": "rounded", "subGraphTitleMargin": {"top": 6, "bottom": 30}}}}%%
+  Customer(["Customer<br/>[PERSON]"])
+  Shop["<a href='docs/architecture.md'>Sample Shop 🌐</a><br/>[SYSTEM]"]
+  Warehouse["Warehouse<br/>[SYSTEM]"]
   Identity["Identity Provider<br/>[SYSTEM]"]
 
   Customer -->|"places orders"| Shop
   Shop -->|"checks stock"| Warehouse
   Shop -->|"verifies customers"| Identity
 
-  class Customer,Shop,Warehouse,Identity own
-  classDef own fill:#1a73e833,stroke:#1a73e8
+  class Customer person
+  class Shop,Warehouse,Identity own
+  classDef own fill:#2563eb33,stroke:#2563eb
+  classDef person fill:#e11d4833,stroke:#e11d48
 ```
 
-**Legend:** 🟦 Example team
-
-| Node | Source |
-| --- | --- |
-| Customer | - |
-| Sample Shop | [docs/architecture.md](docs/architecture.md) |
-| Warehouse System | - |
-| Identity Provider | - |
+> **Legend:** *🟦 Example team · 🟥 customers*
 
 ## Getting Started
 

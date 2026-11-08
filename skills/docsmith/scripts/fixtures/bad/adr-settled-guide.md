@@ -5,7 +5,7 @@ Type: explanation
 
 # Guide
 
-Audience: the self-test.
+> **Audience:** the self-test.
 
 ## Delivery
 

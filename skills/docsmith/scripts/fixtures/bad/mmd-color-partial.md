@@ -5,12 +5,13 @@ Type: explanation
 
 # Color Partial
 
-Audience: maintainers, to see one rule fail.
+> **Audience:** maintainers, to see one rule fail.
 
 The block colors some nodes and leaves one plain.
 
 ```mermaid
 graph TD
+  %%{init: {"themeCSS": ".cluster-label, .cluster-label div, .cluster-label span, .cluster-label p { text-align: center !important; }", "flowchart": {"curve": "rounded", "subGraphTitleMargin": {"top": 6, "bottom": 30}}}}%%
   One["One<br/>[SERVICE]"]
   Two["Two<br/>[SERVICE]"]
   Three["Three<br/>[SERVICE]"]
@@ -19,14 +20,7 @@ graph TD
   Two -->|"calls"| Three
   Three -->|"calls"| Four
   class One,Two,Three own
-  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef own fill:#2563eb33,stroke:#2563eb
 ```
 
-**Legend:** 🟦 Platform team
-
-| Node | Source |
-| --- | --- |
-| One | - |
-| Two | - |
-| Three | - |
-| Four | - |
+> **Legend:** *🟦 Platform team*

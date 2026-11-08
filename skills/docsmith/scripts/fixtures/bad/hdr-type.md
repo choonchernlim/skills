@@ -5,7 +5,7 @@ Type: novel
 
 # Title
 
-Audience: nobody.
+> **Audience:** nobody.
 
 ## Section
 

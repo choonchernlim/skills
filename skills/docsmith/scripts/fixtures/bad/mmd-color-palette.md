@@ -5,12 +5,13 @@ Type: explanation
 
 # Color Palette
 
-Audience: maintainers, to see one rule fail.
+> **Audience:** maintainers, to see one rule fail.
 
 The block defines a color outside the palette.
 
 ```mermaid
 graph TD
+  %%{init: {"themeCSS": ".cluster-label, .cluster-label div, .cluster-label span, .cluster-label p { text-align: center !important; }", "flowchart": {"curve": "rounded", "subGraphTitleMargin": {"top": 6, "bottom": 30}}}}%%
   One["One<br/>[SERVICE]"]
   Two["Two<br/>[SERVICE]"]
   Three["Three<br/>[SERVICE]"]
@@ -20,15 +21,8 @@ graph TD
   Three -->|"calls"| Four
   class One,Two,Three own
   class Four red
-  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef own fill:#2563eb33,stroke:#2563eb
   classDef red fill:#ff0000
 ```
 
-**Legend:** 🟦 Platform team
-
-| Node | Source |
-| --- | --- |
-| One | - |
-| Two | - |
-| Three | - |
-| Four | - |
+> **Legend:** *🟦 Platform team*

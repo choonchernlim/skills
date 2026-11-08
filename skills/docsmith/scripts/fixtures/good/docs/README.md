@@ -5,7 +5,7 @@ Type: index
 
 # Documentation Index
 
-Audience: anyone working in or reviewing the sample shop.
+> **Audience:** anyone working in or reviewing the sample shop.
 
 ## Domains
 

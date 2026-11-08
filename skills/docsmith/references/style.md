@@ -5,7 +5,7 @@ Type: reference
 
 # Style Rules
 
-Audience: the writer, before drafting and again before handoff.
+> **Audience:** the writer, before drafting and again before handoff.
 
 Every rule names the `lint_docs.py` code that checks it. Rules marked
 `[judgement]` have no check and are reviewed by reading.
@@ -16,8 +16,10 @@ Every rule names the `lint_docs.py` code that checks it. Rules marked
 - [Density](#density)
 - [Vocabulary](#vocabulary)
 - [Meta-Commentary](#meta-commentary)
-- [One Fact, One Home](#one-fact-one-home)
+- [Bloat](#bloat)
+- [One Home per Fact](#one-home-per-fact)
 - [Links](#links)
+- [Emoji Markers](#emoji-markers)
 - [Line Caps](#line-caps)
 
 ## Document Shape
@@ -27,7 +29,8 @@ Every rule names the `lint_docs.py` code that checks it. Rules marked
 | The file opens with a header comment: `Purpose:` line, `Type:` line, nothing else. | `HDR` |
 | `Type` is one of `readme-project`, `readme-folder`, `how-to`, `reference`, `explanation`, `index`, `glossary`, `requirements`, `adr`. | `HDR` |
 | One H1 follows the header. A README puts its one-line description directly under it. | `TTL` |
-| A guide puts one `Audience:` line directly under the H1. | `TTL` |
+| A guide boxes its readers under the H1, as `> **Audience:** who and why`; each wrapped line keeps its `>`. | `TTL` |
+| After a blank line, a plain paragraph says what the guide covers and why, before any heading or table. | `INTRO` |
 | A table of contents appears only past 100 lines or 5 H2 sections, and lists every H2. | `TOC` |
 | Headings use Title Case. Code identifiers keep their own spelling. | `HCASE` |
 | No heading is followed directly by another heading. | `EMPTY` |
@@ -89,7 +92,44 @@ this section used to   this document previously   what was one 29-node map
 replaces what was      kept for link stability   this corpus now calls
 ```
 
-## One Fact, One Home
+## Bloat
+
+Bloat is anything a reader must skip to reach the point. Code owns its own facts; a guide explains them and links the code.
+
+| Rule | Code |
+| --- | --- |
+| A table of 10 rows led by code identifiers, 20 in a reference, copies a schema. Keep what readers need. | `COPY` |
+| No change-log phrases, such as "used to be", "formerly" or "was renamed". Git and the ADRs hold history. | `HIST` |
+
+Patterns to cut `[judgement]`:
+
+- UI copy, such as labels, tooltips, and toast text. Tests and the component own it.
+- Pixel sizes, breakpoints, and animation timings.
+- Edge cases before the main path. Lead with the common case; put exceptions last.
+- One fact said three ways in one file. Keep the clearest one.
+- A field-by-field list that repeats the schema beside a link to that schema.
+
+### Frozen Facts
+
+A frozen fact is a value copied from code into a doc. It goes stale silently, so it needs a reason to stay.
+
+| Rule | Code |
+| --- | --- |
+| No patch-level version, such as `2.4.1`, outside a code fence. The manifest or lockfile owns versions. | `PIN` |
+| No source line reference, such as `server.py:42`, in a guide. Link the file, or a symbol in it. | `LINE` |
+| A value that must stay sits under `<!-- frozen: reason -->` on the line before, with a reason of 5 or more words. | `FROZEN` |
+
+A marker exempts the next paragraph, list or table from `PIN` and `LINE`.
+Write "every" or link the list instead of counting things the code lists, such as "five services" or "ten tests" `[judgement]`.
+The [audit](audit.md#claim-checks) re-checks every marker.
+
+Some types expect what these codes catch, so the lint skips them there:
+
+- An ADR is a dated record, so it skips all five.
+- A glossary and the decision index may name old aliases (`HIST`).
+- Requirements record retired rows (`HIST`, `COPY`), and a README maps its folder's files (`COPY`).
+
+## One Home per Fact
 
 Each category of fact has one owning document, listed in the
 [fact-ownership table](guides.md#fact-ownership). Every other document may
@@ -114,17 +154,49 @@ their own.
 | Link text says what the target is. Never "here", "click here", or a bare URL. | `LINK` |
 | Links inside the repo are relative paths that resolve from the file's folder. | `LINK` |
 | Anchors match a real heading under GitHub slugging. | `LINK` |
+| A linked heading holds only letters, digits, spaces and hyphens, since Azure DevOps slugs punctuation differently. | `LINK` |
 | Absolute `github.com/.../blob/...` URLs into this repo are not allowed. | `LINK` |
+| Sources for a table or paragraph take the boxed [Sources line](mermaid.md#source-links) a diagram uses. | `MMD` |
+
+## Emoji Markers
+
+An emoji marks what a reader scans for: a warning, a status, or a line's
+topic. Each emoji has one meaning in every document, so the set is closed.
+Code: `EMOJI`.
+
+| Marker | Emojis | Where |
+| --- | --- | --- |
+| Callout | ⚠️ Warning, 💡 Tip | A blockquote line: `> ⚠️ **Warning:** text` |
+| Status | ✅ pass or yes, ❌ fail or no, 🟡 partial or stale | Opening a table cell. A `> **Legend:**` line under the table keys them when the column name does not |
+| Topic lead | See the topic table | Opening a bullet, or a table row's first cell |
+
+| Topic | Emoji | Topic | Emoji |
+| --- | --- | --- | --- |
+| Identity and access | 🔐 | Data and storage | 📦 |
+| Audit and logs | 🧾 | Model call | 🤖 |
+| Safety | 🛡️ | People and roles | 👤 |
+| Tests and evals | 🧪 | Cost | 💰 |
+| Deploy and release | 🚀 | Latency | ⏱️ |
+| Configuration | ⚙️ | Integration | 🔌 |
+
+- Lead a list or table with topics only when its 3 or more items mix topics.
+  One emoji per line, never on every line of a uniform list.
+- A heading never holds an emoji: some viewers drop it from the anchor, so
+  links break.
+- A diagram holds none either. Its tag and shape name the type, and its title
+  link icon and legend swatches are the only glyphs.
+- An emoji quoted from a tool's output goes in inline code: `🧭 tools`.
+- A new marker is added to this table and to the lint together.
 
 ## Line Caps
 
 | Type | Cap |
 | --- | ---: |
-| `readme-project` | 150 |
+| `readme-project` | 200 |
 | `readme-folder` | 80 |
 | `how-to`, `explanation` | 200 |
 | `reference`, `requirements` | 300 |
-| `index` | 120 |
+| `index` | 120; none for the ADR directory's README |
 | `adr` | 80 |
 | `glossary` | none |
 

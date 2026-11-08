@@ -5,7 +5,7 @@ Type: reference
 
 # Runtime Diagrams
 
-Audience: the writer, when a reader needs to trace events in order.
+> **Audience:** the writer, when a reader needs to trace events in order.
 
 Use `sequenceDiagram`. Put the initiating person first, then participants in
 call order, kept together by owner band. Every participant uses
@@ -31,45 +31,55 @@ more than order, create a separate application or infrastructure diagram.
 Every participant sits in one owner band, so a box keeps the owner color it
 has in every flowchart. A band is `box <color> <owner name>`, its participant
 lines, then `end`. Mermaid reads `#` in a `box` line as a comment, so a band
-takes the `rgba` form of its owner's [palette](mermaid.md#color) fill.
+takes the `rgba` form of its owner's [palette](mermaid-visual.md#color) fill.
 
 | Class | Band Color |
 | --- | --- |
-| `own` | `rgba(26,115,232,0.2)` |
-| `peer` | `rgba(24,128,56,0.2)` |
-| `platform` | `rgba(227,116,0,0.2)` |
-| `vendor` | `rgba(95,99,104,0.2)` |
+| `own` | `rgba(37,99,235,0.2)` |
+| `peer` | `rgba(13,148,136,0.2)` |
+| `platform` | `rgba(217,119,6,0.2)` |
+| `external` | `rgba(100,116,139,0.2)` |
+| `person` | `rgba(225,29,72,0.2)` |
 
 - Declare every participant inside a band; a band holds participant lines only.
   Never use `create`: Mermaid places a created participant outside every band.
 - Name the real owner in the band title. The titles are the key, so a
   sequence diagram needs no legend line.
 - An `[AGENT]` participant sits in its owner's band; its tag marks the model call.
+- Every `[PERSON]` participant sits in a person band, and nothing else does.
+  Name the people in its title, such as `Store staff`.
 - Two bands may share an owner when call order separates its participants.
+
+A participant takes no class, so its box would wear the viewer theme's color.
+Copy this line exactly as the second line of every sequence diagram. It makes
+each box see-through, so it shows its band's tint, and draws borders and
+lifelines in slate. Azure DevOps reads only the first line as the diagram type.
+
+```text
+%%{init: {"themeVariables": {"actorBkg": "transparent", "actorBorder": "#7d8799", "actorLineColor": "#7d8799", "labelBoxBorderColor": "#7d8799"}}}%%
+```
 
 ````markdown
 ```mermaid
 sequenceDiagram
-  box rgba(227,116,0,0.2) Retail operations
+  %%{init: {"themeVariables": {"actorBkg": "transparent", "actorBorder": "#7d8799", "actorLineColor": "#7d8799", "labelBoxBorderColor": "#7d8799"}}}%%
+  box rgba(225,29,72,0.2) Store staff
     participant Clerk as Store Clerk<br/>[PERSON]
   end
-  box rgba(26,115,232,0.2) Orders team
-    participant Api as Orders API<br/>[API]
+  box rgba(37,99,235,0.2) Orders team
+    participant Api as Order<br/>[API]
     participant Plan as Planner<br/>[AGENT]
   end
   Clerk->>Api: 1: places an order
   Api->>Plan: 2: asks for a plan
 ```
 
-| Node | Source |
-| --- | --- |
-| Store Clerk | - |
-| Orders API | [orders.ts](../src/api/orders.ts) |
-| Planner | [planner/](../src/planner/) |
+> **Sources:** *Order [orders.ts](../src/api/orders.ts) · Planner [planner.ts](../src/planner/planner.ts)*
 ````
 
-## Source Table
+## Sources and Steps
 
-List participants in declaration order. A numbered list may combine adjacent
-request and response messages when one explanation covers both without losing
-an authorization, validation, or persistence boundary.
+List participants on the [Sources line](mermaid.md#source-links) in
+declaration order. A numbered list may combine adjacent request and response
+messages when one explanation covers both without losing an authorization,
+validation, or persistence boundary.

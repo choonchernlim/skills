@@ -5,10 +5,10 @@ Type: reference
 
 # ADR Profile
 
-Audience: the writer, when recording a decision or normalizing an existing ADR.
+> **Audience:** the writer, when recording a decision or normalizing an existing ADR.
 
 One decision per file, named `NNNN-kebab-title.md`, four-digit sequence,
-next number is the highest existing plus one. Use the repo's existing ADR
+next number is the highest existing plus one, and no two ADRs share a number (`NUM`). Use the repo's existing ADR
 directory; default to `docs/adrs/` only when none exists. An ADR never has
 a table of contents.
 
@@ -86,6 +86,6 @@ The lint follows the same rule. An ADR is settled once its status is
 `Accepted`, `Rejected`, `Deprecated`, or `Superseded`.
 
 - A settled ADR reports only the codes a format-only pass can fix:
-  `HDR`, `TTL`, `HCASE`, `EMPTY`, `TOC`, `FENCE`, and `LINK`.
+  `HDR`, `TTL`, `HCASE`, `EMPTY`, `TOC`, `FENCE`, `LINK`, and `NUM`.
 - A `Proposed` ADR, or one with no status, is checked against every rule.
 - A settled ADR owns any fact it shares, so `DUP` lands on the editable file.

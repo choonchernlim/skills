@@ -5,7 +5,7 @@ Type: explanation
 
 # Directive
 
-Audience: maintainers, to see one rule fail.
+> **Audience:** maintainers, to see one rule fail.
 
 The block opens with an init directive instead of the diagram type.
 
@@ -20,14 +20,7 @@ graph TD
   Two -->|"calls"| Three
   Three -->|"calls"| Four
   class One,Two,Three,Four own
-  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef own fill:#2563eb33,stroke:#2563eb
 ```
 
-**Legend:** 🟦 Platform team
-
-| Node | Source |
-| --- | --- |
-| One | - |
-| Two | - |
-| Three | - |
-| Four | - |
+> **Legend:** *🟦 Platform team*

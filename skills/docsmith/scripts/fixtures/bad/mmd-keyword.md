@@ -5,7 +5,7 @@ Type: explanation
 
 # Keyword
 
-Audience: maintainers, to see one rule fail.
+> **Audience:** maintainers, to see one rule fail.
 
 The block uses the flowchart keyword.
 
@@ -19,10 +19,3 @@ flowchart TD
   Two -->|"calls"| Three
   Three -->|"calls"| Four
 ```
-
-| Node | Source |
-| --- | --- |
-| One | - |
-| Two | - |
-| Three | - |
-| Four | - |

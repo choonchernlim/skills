@@ -5,7 +5,7 @@ Type: reference
 
 # Title C
 
-Audience: nobody.
+> **Audience:** nobody.
 
 ## Section
 

@@ -5,7 +5,7 @@ Type: reference
 
 # Requirements Profile
 
-Audience: the writer, when the target is `docs/requirements.md`.
+> **Audience:** the writer, when the target is `docs/requirements.md`.
 
 Requirements state what the product does for its users and what qualities
 the system holds. Each one is a single sentence a product owner can read
@@ -24,7 +24,9 @@ Type: requirements
 
 # Requirements
 
-Audience: product owners and maintainers checking what the product must do.
+> **Audience:** product owners and maintainers checking what the product must do.
+
+One or two plain sentences: what the product must do, and how to read a row.
 
 ## Table of Contents
 

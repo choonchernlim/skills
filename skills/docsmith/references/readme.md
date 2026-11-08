@@ -5,7 +5,7 @@ Type: reference
 
 # README Profiles
 
-Audience: the writer, when the target is a README.md at any level.
+> **Audience:** the writer, when the target is a README.md at any level.
 
 Pick the profile from the folder, not from the existing file. A repo,
 package, or runnable-project root takes PROJECT. A directory inside the
@@ -13,7 +13,7 @@ source tree takes FOLDER.
 
 ## PROJECT Profile
 
-Cap: 150 lines. The first runnable command appears within two screens.
+Cap: 200 lines. The first runnable command appears within two screens.
 
 ```markdown
 <!--
@@ -38,6 +38,12 @@ it. No identifiers or paths yet.
 
 | Inventory | Current Set |
 | --- | --- |
+
+### Reading Paths
+
+| Reader | Read First | Then |
+| --- | --- | --- |
+| The role, such as a new engineer joining this repository | The first section or guide | The next one |
 
 ## Getting Started
 
@@ -70,9 +76,17 @@ Fill guidance:
   - Under four nodes, write a sentence instead.
 - The Resources table lists the docs index, every guide, and the ADR
   directory, one row each.
-- Contributing, license, and security link to their own files.
+  - Contributing, license, and security are rows that link their own files.
+- A project that is also one runnable component may add a To Add table, as the FOLDER profile describes.
 - No "Adding a Plugin" or similar recipe here. The how-to guide owns it;
   the Introduction links it in one sentence.
+- Reading Paths names every reader by role, one row each. The
+  [audit](audit.md#audiences) grades against these rows, and asks the user when they are missing.
+- A project read by several audiences may add numbered chapters between
+  Getting Started and Resources, routed from the Reading Paths table.
+  - Each chapter is a short story, then a `Question You Might Ask | Read` table.
+  - The chapters link the guides, so Resources keeps only the index, glossary,
+    ADRs, and requirements.
 
 ## FOLDER Profile
 
@@ -98,9 +112,11 @@ One sentence saying what this folder owns and what it does not.
 | File | Owns | Direct Callers |
 | --- | --- | --- |
 
-## How to Extend
+## To Add
 
-Where a new implementation is declared, and what must not be edited.
+| To Add | Declare It In | Then |
+| --- | --- | --- |
+| A new <thing> | `path/to/registry.ts` | The test or check that proves it works |
 
 ## Verification
 
@@ -110,6 +126,7 @@ The commands that prove a change here is safe.
 Fill guidance:
 
 - Entrypoints: at most 7 bullets. Past that, the folder is two folders.
+- To Add answers "where does my change go" for each thing a developer adds here, one row each. It is often the most read section.
 - File Ownership lists hand-written runtime files only. Tests, styles, and
   generated artifacts are omitted.
 - Cross-cutting facts (team ownership, extension rule, contracts) are one

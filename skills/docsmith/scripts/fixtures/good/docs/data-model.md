@@ -5,7 +5,7 @@ Type: reference
 
 # Data Model
 
-Audience: backend developers, to understand account ownership.
+> **Audience:** backend developers, to understand account ownership.
 
 An account owns projects through a required foreign key.
 
@@ -22,7 +22,4 @@ erDiagram
   }
 ```
 
-| Node | Source |
-| --- | --- |
-| account | - |
-| project | - |
+> **Sources:** *account [api.ts](../src/api.ts) · project [api.ts](../src/api.ts), [README.md](../src/README.md)*

@@ -18,9 +18,11 @@ Owns the order routes and inventory client; does not own persistence.
 | [api.ts](api.ts) | Order route | Browser |
 | [inventory/client.ts](inventory/client.ts) | Stock queries | Order route |
 
-## How to Extend
+## To Add
 
-Add one warehouse adapter under `inventory/`; edit nothing else.
+| To Add | Declare It In | Then |
+| --- | --- | --- |
+| A warehouse | One adapter under `inventory/`; edit nothing else | `bun run test` |
 
 ## Verification
 

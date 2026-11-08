@@ -5,7 +5,9 @@ Type: reference
 
 # Contracts
 
-Audience: both teams, to answer which fields a payload carries.
+> **Audience:** both teams, to answer which fields a payload carries.
+
+Every payload that crosses a team boundary has one shape. This reference lists the fields a reader needs to build or check one.
 
 ## Table of Contents
 

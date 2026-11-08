@@ -5,12 +5,13 @@ Type: explanation
 
 # Color Model
 
-Audience: maintainers, to see one rule fail.
+> **Audience:** maintainers, to see one rule fail.
 
 The block marks a deterministic service as a model call.
 
 ```mermaid
 graph TD
+  %%{init: {"themeCSS": ".cluster-label, .cluster-label div, .cluster-label span, .cluster-label p { text-align: center !important; }", "flowchart": {"curve": "rounded", "subGraphTitleMargin": {"top": 6, "bottom": 30}}}}%%
   One["One<br/>[SERVICE]"]
   Two["Two<br/>[SERVICE]"]
   Three["Three<br/>[SERVICE]"]
@@ -20,15 +21,8 @@ graph TD
   Three -->|"calls"| Four
   class One,Two,Three own
   class Four model
-  classDef own fill:#1a73e833,stroke:#1a73e8
-  classDef model fill:#9334e633,stroke:#9334e6,stroke-width:3px
+  classDef own fill:#2563eb33,stroke:#2563eb
+  classDef model fill:#c026d333,stroke:#c026d3,stroke-width:3px
 ```
 
-**Legend:** 🟦 Platform team · 🟪 model call
-
-| Node | Source |
-| --- | --- |
-| One | - |
-| Two | - |
-| Three | - |
-| Four | - |
+> **Legend:** *🟦 Platform team · 🟪 model call*

@@ -5,7 +5,7 @@ Type: index
 
 # Security
 
-Audience: anyone looking for a guide about signing in to the sample shop.
+> **Audience:** anyone looking for a guide about signing in to the sample shop.
 
 ## Guides
 

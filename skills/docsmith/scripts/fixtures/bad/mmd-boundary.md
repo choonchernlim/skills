@@ -5,12 +5,13 @@ Type: explanation
 
 # Boundary
 
-Audience: maintainers, to see one rule fail.
+> **Audience:** maintainers, to see one rule fail.
 
-The boundary title carries its type.
+The boundary title keeps its type on the first line.
 
 ```mermaid
 graph TD
+  %%{init: {"themeCSS": ".cluster-label, .cluster-label div, .cluster-label span, .cluster-label p { text-align: center !important; }", "flowchart": {"curve": "rounded", "subGraphTitleMargin": {"top": 6, "bottom": 30}}}}%%
   subgraph App["Application [DEPLOYMENT]"]
     direction TB
     One["One<br/>[SERVICE]"]
@@ -24,15 +25,8 @@ graph TD
 
   class One,Two,Three,Four own
   class App boundary
-  classDef own fill:#1a73e833,stroke:#1a73e8
-  classDef boundary fill:#f9ab0014,stroke:#f9ab00
+  classDef own fill:#2563eb33,stroke:#2563eb
+  classDef boundary fill:#7d879914,stroke:#7d8799,stroke-dasharray:6
 ```
 
-**Legend:** 🟦 Example team
-
-| Node | Source |
-| --- | --- |
-| One | - |
-| Two | - |
-| Three | - |
-| Four | - |
+> **Legend:** *🟦 Example team*

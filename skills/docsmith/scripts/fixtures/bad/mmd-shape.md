@@ -5,7 +5,7 @@ Type: explanation
 
 # Title
 
-Audience: nobody.
+> **Audience:** nobody.
 
 ## Section
 
@@ -13,8 +13,9 @@ Nodes B, C, and E to K each break the shape rule once.
 
 ```mermaid
 graph TD
+  %%{init: {"themeCSS": ".cluster-label, .cluster-label div, .cluster-label span, .cluster-label p { text-align: center !important; }", "flowchart": {"curve": "rounded", "subGraphTitleMargin": {"top": 6, "bottom": 30}}}}%%
   A["One<br/>[UI]"]
-  B["Two<br/>[DATABASE]"]
+  B["Two<br/>[POSTGRES]"]
   C[("Three<br/>[API]")]
   D["Four<br/>[SERVICE]"]
   E(["Five<br/>[SERVICE]"])
@@ -36,21 +37,7 @@ graph TD
   D -->|"calls"| K
 
   class A,B,C,D,E,F,G,H,I,J,K own
-  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef own fill:#2563eb33,stroke:#2563eb
 ```
 
-**Legend:** 🟦 Example team
-
-| Node | Source |
-| --- | --- |
-| One | - |
-| Two | - |
-| Three | - |
-| Four | - |
-| Five | - |
-| Six | - |
-| Seven | - |
-| Eight | - |
-| Nine | - |
-| Ten | - |
-| Eleven | - |
+> **Legend:** *🟦 Example team*

@@ -5,13 +5,14 @@ Type: explanation
 
 # Node Drift
 
-Audience: maintainers, to see one rule fail.
+> **Audience:** maintainers, to see one rule fail.
 
 The same title points at a file here.
 
 ```mermaid
 graph TD
-  Omega["Omega<br/>[SERVICE]"]
+  %%{init: {"themeCSS": ".cluster-label, .cluster-label div, .cluster-label span, .cluster-label p { text-align: center !important; }", "flowchart": {"curve": "rounded", "subGraphTitleMargin": {"top": 6, "bottom": 30}}}}%%
+  Omega["<a href='link.md'>Omega 🌐</a><br/>[SERVICE]"]
   Phi["Phi<br/>[SERVICE]"]
   Chi["Chi<br/>[SERVICE]"]
   Psi["Psi<br/>[SERVICE]"]
@@ -20,14 +21,7 @@ graph TD
   Chi -->|"calls"| Psi
 
   class Omega,Phi,Chi,Psi own
-  classDef own fill:#1a73e833,stroke:#1a73e8
+  classDef own fill:#2563eb33,stroke:#2563eb
 ```
 
-**Legend:** 🟦 Example team
-
-| Node | Source |
-| --- | --- |
-| Omega | [link.md](link.md) |
-| Phi | - |
-| Chi | - |
-| Psi | - |
+> **Legend:** *🟦 Example team*

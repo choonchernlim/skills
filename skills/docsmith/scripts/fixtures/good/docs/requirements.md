@@ -5,7 +5,9 @@ Type: requirements
 
 # Requirements
 
-Audience: product owners and maintainers checking what the product must do.
+> **Audience:** product owners and maintainers checking what the product must do.
+
+Each row is one rule the product must follow, with the test that proves it.
 
 ## Checkout
 

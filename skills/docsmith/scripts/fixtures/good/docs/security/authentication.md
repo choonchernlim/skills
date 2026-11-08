@@ -5,7 +5,9 @@ Type: explanation
 
 # Authentication
 
-Audience: all teams, to answer how a request proves who sent it.
+> **Audience:** all teams, to answer how a request proves who sent it.
+
+Every request carries proof of who sent it. This guide shows how a customer gets that proof and how the API checks it.
 
 ## Customer Login
 
@@ -14,11 +16,14 @@ every call.
 
 ```mermaid
 sequenceDiagram
-  box rgba(26,115,232,0.2) Example team
+  %%{init: {"themeVariables": {"actorBkg": "transparent", "actorBorder": "#7d8799", "actorLineColor": "#7d8799", "labelBoxBorderColor": "#7d8799"}}}%%
+  box rgba(225,29,72,0.2) Customers
     participant Customer as Customer<br/>[PERSON]
-    participant Browser as Storefront UI<br/>[UI]
+  end
+  box rgba(37,99,235,0.2) Example team
+    participant Browser as Storefront<br/>[UI]
     participant Identity as Identity Provider<br/>[SYSTEM]
-    participant Route as Order API<br/>[API]
+    participant Route as Order<br/>[API]
   end
 
   Customer->>Browser: 1: Enter credentials
@@ -29,12 +34,7 @@ sequenceDiagram
   Identity-->>Route: 6: Confirm the customer
 ```
 
-| Node | Source |
-| --- | --- |
-| Customer | - |
-| Storefront UI | [../../src/](../../src/) |
-| Identity Provider | - |
-| Order API | [../../src/api.ts](../../src/api.ts) |
+> **Sources:** *Storefront [../../src/README.md](../../src/README.md) · Order [../../src/api.ts](../../src/api.ts)*
 
 The API holds no passwords. It rejects any call whose token the identity
 provider does not confirm.

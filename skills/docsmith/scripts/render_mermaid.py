@@ -16,10 +16,16 @@ import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 
-PACKAGE = "@mermaid-js/mermaid-cli"
+# The CLI is pinned exactly, and resolves the newest Mermaid 11 within its own range,
+# the line IDE previews embed. 12.0.0 ignores the flowchart settings in the init line,
+# such as the curve and the subgraph title margin.
+PACKAGE = "@mermaid-js/mermaid-cli@11.12.0"
 RUNNERS = ("bunx", "npx")
 WORKERS = 4
 SCALE = "2"
+# The classic light theme that Azure DevOps and IDE previews draw, set explicitly so
+# a renderer default can never change it.
+THEME = "default"
 
 
 def extract(path: str) -> list[tuple[int, str]]:
@@ -43,7 +49,7 @@ def render(runner: str, source: str, png: str) -> str | None:
     with open(mmd, "w", encoding="utf-8") as fh:
         fh.write(source)
     proc = subprocess.run(
-        [runner, "--yes", PACKAGE, "-i", mmd, "-o", png, "-s", SCALE, "-q"],
+        [runner, "--yes", PACKAGE, "-i", mmd, "-o", png, "-s", SCALE, "-t", THEME, "-q"],
         capture_output=True, text=True,
     )
     if proc.returncode != 0 or not os.path.isfile(png):

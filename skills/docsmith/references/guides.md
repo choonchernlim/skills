@@ -5,7 +5,7 @@ Type: reference
 
 # Docs Guides
 
-Audience: the writer, when the target is any file under `docs/` other than an ADR.
+> **Audience:** the writer, when the target is any file under `docs/` other than an ADR.
 
 The README routes; `docs/` holds the depth. Each guide has exactly one type
 and one topic. Generate only the roles that have content today; never
@@ -19,6 +19,8 @@ scaffold an empty guide so the set looks complete.
 - [Index Profile](#index-profile)
 - [Domain Index Profile](#domain-index-profile)
 - [Glossary Profile](#glossary-profile)
+- [Brief Profile](#brief-profile)
+- [ADR Start Here](#adr-start-here)
 - [Fact Ownership](#fact-ownership)
 
 ## Roles
@@ -27,6 +29,7 @@ scaffold an empty guide so the set looks complete.
 | --- | --- | --- |
 | Index | `docs/README.md` | `index` |
 | Glossary | `docs/glossary.md` | `glossary` |
+| Brief | `docs/brief.md` | `explanation`, see the [brief profile](#brief-profile) |
 | Architecture | `docs/architecture.md` | `explanation` |
 | Runtime flows | `docs/runtime-flows.md` | `explanation` |
 | Data model | `docs/data-model.md` | `reference` |
@@ -37,6 +40,7 @@ scaffold an empty guide so the set looks complete.
 | Task playbook | `docs/<task>-playbook.md` | `how-to` |
 | Requirements | `docs/requirements.md` | `requirements`, see [requirements.md](requirements.md) |
 | Decisions | `docs/adrs/` | `adr`, see [adr.md](adr.md) |
+| Decision index | `docs/adrs/README.md` | `index`, one row per ADR, no line cap, an optional Start Here list |
 
 When a repo satisfies a role under another name, rename that file to the
 canonical name and fix its inbound links. The lint finds an owner file by name.
@@ -59,7 +63,7 @@ such as `docs/orders/` and `docs/operations/`. A domain is an area of the
 product or of the work, never a Diátaxis type: its folder holds every how-to,
 reference, and explanation about that area.
 
-- The index, glossary, requirements, and `adrs/` stay at the `docs/` root.
+- The index, glossary, brief, requirements, and `adrs/` stay at the `docs/` root.
 - A role file keeps its canonical name inside its domain, such as
   `docs/architecture/runtime-flows.md`. The lint finds it there by name.
 - Each domain folder has a `README.md` of type `index`, in the
@@ -80,7 +84,10 @@ Type: <how-to | reference | explanation>
 
 # Guide Title
 
-Audience: <who reads this> to <answer which question>.
+> **Audience:** <who reads this> to <answer which question>.
+
+One to three plain sentences: what this guide covers and why a reader needs it.
+No identifiers yet.
 
 ## Table of Contents
 
@@ -134,7 +141,7 @@ Cap: 120 lines. A domain folder's `README.md` routes inside that domain only.
 ```markdown
 # Orders
 
-Audience: anyone looking for a guide about taking and fulfilling orders.
+> **Audience:** anyone looking for a guide about taking and fulfilling orders.
 
 ## Guides
 
@@ -160,6 +167,20 @@ One alphabetical table, no other sections. No cap.
 Meaning is one sentence under 20 words. The term is the canonical noun;
 every other document uses it and links here instead of redefining it.
 
+## Brief Profile
+
+Optional: write one only when the project's decision-makers want it, and never add one unasked. Cap: 120 lines. The brief gives a decision-maker the whole system in ten minutes: what it does, why, how the design works, the top risks, the cost, and how mature each part is.
+
+- Every section is two to four sentences, then a link to the guide that owns the detail.
+- Risks and maturity are tables with a status emoji, so a reader scans them first.
+- It states no fact the owner guide does not hold, and adds no new ones.
+- When one exists, the README's Reading Paths row for decision-makers lists it first.
+
+## ADR Start Here
+
+A decision index past 30 ADRs opens with a `## Start Here` table of 5 to 12 rows: the decisions a newcomer needs to read the code.
+Each row is one ADR and the question it answers. Pick current decisions that shape the most code, never superseded ones.
+
 ## Fact Ownership
 
 One category of fact lives in one document. Every other mention is one
@@ -181,3 +202,4 @@ sentence plus a link.
 | Definitions | `glossary.md` |
 | Requirement statements | `requirements.md` |
 | Why a decision was made | The ADR |
+| What the system is, its design, risks and cost, for decision-makers | `brief.md`, which only links the owners |

@@ -5,7 +5,7 @@ Type: explanation
 
 # Title
 
-Audience: nobody.
+> **Audience:** nobody.
 
 ## Section
 
@@ -13,18 +13,15 @@ Lead.
 
 ```mermaid
 sequenceDiagram
-  box rgba(26,115,232,0.2) Example team
+  %%{init: {"themeVariables": {"actorBkg": "transparent", "actorBorder": "#7d8799", "actorLineColor": "#7d8799", "labelBoxBorderColor": "#7d8799"}}}%%
+  box rgba(225,29,72,0.2) Shoppers
     actor Customer as Customer<br/>[PERSON]
-    participant Browser as 1. Storefront UI<br/>[UI]
-    participant Route as Order API<br/>[API]
+  end
+  box rgba(37,99,235,0.2) Example team
+    participant Browser as 1. Storefront<br/>[UI]
+    participant Route as Order<br/>[API]
   end
 
   Customer->>Browser: Submit the cart
   Browser->>Route: 2: Create the order
 ```
-
-| Node | Source |
-| --- | --- |
-| Customer | - |
-| 1. Storefront UI | - |
-| Order API | - |

@@ -5,7 +5,7 @@ Type: explanation
 
 # Title
 
-Audience: nobody.
+> **Audience:** nobody.
 
 ## Section
 
@@ -15,8 +15,3 @@ Lead.
 flowchart LR
   A["One<br/>[UI]"] -->|"calls"| B["Two<br/>[API]"]
 ```
-
-| Node | Source |
-| --- | --- |
-| One | - |
-| Two | - |

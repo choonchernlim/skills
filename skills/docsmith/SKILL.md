@@ -3,12 +3,13 @@ name: docsmith
 description: >
   Writes and rewrites Markdown documentation to one linted house style:
   project and folder READMEs, docs/ guides (how-to, reference, explanation),
-  a docs index, a glossary, requirements, and MADR-style ADRs. Use when asked
-  to write or restructure a README or the docs, document a folder or module,
-  record a decision or ADR, write or update requirements, or when
-  documentation is bloated, inconsistent, duplicated across files, or
-  drifted from the code. Also grades docs against their audiences and keeps
-  them at A+ as the code and the docs grow.
+  a docs index, a glossary, requirements, MADR-style ADRs, and Mermaid
+  diagrams. Use when asked to write or restructure a README or the docs,
+  document a folder or module, record a decision or ADR, write or update
+  requirements, or draw, edit, or fix any Mermaid diagram or flowchart in
+  any Markdown file, or when documentation is bloated, inconsistent,
+  duplicated across files, or drifted from the code. Also grades docs
+  against their audiences and keeps them at A+ as the code and the docs grow.
 ---
 
 # Docsmith

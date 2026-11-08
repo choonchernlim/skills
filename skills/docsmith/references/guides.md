@@ -40,7 +40,7 @@ scaffold an empty guide so the set looks complete.
 | Task playbook | `docs/<task>-playbook.md` | `how-to` |
 | Requirements | `docs/requirements.md` | `requirements`, see [requirements.md](requirements.md) |
 | Decisions | `docs/adrs/` | `adr`, see [adr.md](adr.md) |
-| Decision index | `docs/adrs/README.md` | `index`, one row per ADR, no line cap, an optional Start Here list |
+| Decision index | `docs/adrs/README.md` | `index`, one row per ADR, no line cap, a [Start Here](#adr-start-here) table past 30 ADRs |
 
 When a repo satisfies a role under another name, rename that file to the
 canonical name and fix its inbound links. The lint finds an owner file by name.
@@ -183,8 +183,8 @@ Each row is one ADR and the question it answers. Pick current decisions that sha
 
 ## Fact Ownership
 
-One category of fact lives in one document. Every other mention is one
-sentence plus a link.
+The owner of each category of fact, for the
+[one home per fact](style.md#one-home-per-fact) rule:
 
 | Fact | Owner |
 | --- | --- |

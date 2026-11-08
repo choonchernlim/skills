@@ -5,7 +5,7 @@ Type: reference
 
 # Requirements Profile
 
-> **Audience:** the writer, when the target is `docs/requirements.md`.
+> **Audience:** the writer, when the target is `docs/requirements.md` or a file under `docs/requirements/`.
 
 Requirements state what the product does for its users and what qualities
 the system holds. Each one is a single sentence a product owner can read
@@ -13,8 +13,8 @@ aloud. Explanation, design, and procedure live elsewhere.
 
 ## Shape
 
-Cap: 300 lines. Past that, one file per domain under `docs/requirements/`
-with `docs/requirements.md` as the index.
+Cap: 300 lines. Past that, write one `requirements` file per domain under
+`docs/requirements/`, and make `docs/requirements.md` their `index`.
 
 ```markdown
 <!--

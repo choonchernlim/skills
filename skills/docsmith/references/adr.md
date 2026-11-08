@@ -87,5 +87,6 @@ The lint follows the same rule. An ADR is settled once its status is
 
 - A settled ADR reports only the codes a format-only pass can fix:
   `HDR`, `TTL`, `HCASE`, `EMPTY`, `TOC`, `FENCE`, `LINK`, and `NUM`.
-- A `Proposed` ADR, or one with no status, is checked against every rule.
+- A `Proposed` ADR, or one with no status, is checked against every rule
+  except the five every ADR skips, listed under [frozen facts](style.md#frozen-facts).
 - A settled ADR owns any fact it shares, so `DUP` lands on the editable file.

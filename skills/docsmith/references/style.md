@@ -7,8 +7,9 @@ Type: reference
 
 > **Audience:** the writer, before drafting and again before handoff.
 
-Every rule names the `lint_docs.py` code that checks it. Rules marked
-`[judgement]` have no check and are reviewed by reading.
+Every rule names the `lint_docs.py` code that checks it, or `[judgement]`
+when it is reviewed by reading. A guide is any `how-to`, `reference`,
+`explanation`, `index`, or `requirements` file.
 
 ## Table of Contents
 
@@ -30,14 +31,14 @@ Every rule names the `lint_docs.py` code that checks it. Rules marked
 | `Type` is one of `readme-project`, `readme-folder`, `how-to`, `reference`, `explanation`, `index`, `glossary`, `requirements`, `adr`. | `HDR` |
 | One H1 follows the header. A README puts its one-line description directly under it. | `TTL` |
 | A guide boxes its readers under the H1, as `> **Audience:** who and why`; each wrapped line keeps its `>`. | `TTL` |
-| After a blank line, a plain paragraph says what the guide covers and why, before any heading or table. | `INTRO` |
+| After a blank line, a plain paragraph says what a non-index guide covers and why, before any heading or table. | `INTRO` |
 | A table of contents appears only past 100 lines or 5 H2 sections, and lists every H2. | `TOC` |
 | Headings use Title Case. Code identifiers keep their own spelling. | `HCASE` |
 | No heading is followed directly by another heading. | `EMPTY` |
 | At most 10 H2 sections per file. | `H2N` |
 | Every file stays under the line cap for its type (see [Line Caps](#line-caps)). | `CAP` |
 
-Title Case capitalizes every word except articles, conjunctions, and short
+Title Case (`HCASE`) capitalizes every word except articles, conjunctions, and short
 prepositions: "Table of Contents", "Adding a Plugin", "How the Route
 Finds the API". The first and last words are always capitalized.
 
@@ -53,7 +54,7 @@ Finds the API". The first and last words are always capitalized.
 | A list holds at most 7 items; a table of contents is exempt. Past that, use a table or split. | `LIST` |
 | Every code fence names its language. | `FENCE` |
 
-One idea per sentence, one sentence per idea. Prefer a verb to a noun
+Sentence craft `[judgement]`: one idea per sentence, one sentence per idea. Prefer a verb to a noun
 phrase ("the route validates" over "validation is performed by the route").
 Use second person for instructions and active voice everywhere.
 
@@ -99,7 +100,7 @@ Bloat is anything a reader must skip to reach the point. Code owns its own facts
 | Rule | Code |
 | --- | --- |
 | A table of 10 rows led by code identifiers, 20 in a reference, copies a schema. Keep what readers need. | `COPY` |
-| No change-log phrases, such as "used to be", "formerly" or "was renamed". Git and the ADRs hold history. | `HIST` |
+| No change-log phrases, such as `used to be`, `formerly` or `was renamed`. Git and the ADRs hold history. | `HIST` |
 
 Patterns to cut `[judgement]`:
 
@@ -115,15 +116,20 @@ A frozen fact is a value copied from code into a doc. It goes stale silently, so
 
 | Rule | Code |
 | --- | --- |
-| No patch-level version, such as `2.4.1`, outside a code fence. The manifest or lockfile owns versions. | `PIN` |
-| No source line reference, such as `server.py:42`, in a guide. Link the file, or a symbol in it. | `LINE` |
+| No patch-level version outside a code fence. The manifest or lockfile owns versions. | `PIN` |
+| No source line reference in a guide. Link the file, or a symbol in it. | `LINE` |
 | A value that must stay sits under `<!-- frozen: reason -->` on the line before, with a reason of 5 or more words. | `FROZEN` |
+
+```text
+2.4.1          a patch-level version, caught by PIN
+server.py:42   a source line reference, caught by LINE
+```
 
 A marker exempts the next paragraph, list or table from `PIN` and `LINE`.
 Write "every" or link the list instead of counting things the code lists, such as "five services" or "ten tests" `[judgement]`.
 The [audit](audit.md#claim-checks) re-checks every marker.
 
-Some types expect what these codes catch, so the lint skips them there:
+Some types expect what `COPY`, `HIST`, `PIN`, `LINE`, and `FROZEN` catch, so the lint skips them there:
 
 - An ADR is a dated record, so it skips all five.
 - A glossary and the decision index may name old aliases (`HIST`).
@@ -166,18 +172,15 @@ Code: `EMOJI`.
 
 | Marker | Emojis | Where |
 | --- | --- | --- |
-| Callout | ⚠️ Warning, 💡 Tip | A blockquote line: `> ⚠️ **Warning:** text` |
+| Callout | `⚠️ Warning`, `💡 Tip` | A blockquote line: `> ⚠️ **Warning:** text` |
 | Status | ✅ pass or yes, ❌ fail or no, 🟡 partial or stale | Opening a table cell. A `> **Legend:**` line under the table keys them when the column name does not |
-| Topic lead | See the topic table | Opening a bullet, or a table row's first cell |
+| Topic lead | One per topic, listed below | Opening a bullet, or a table row's first cell |
 
-| Topic | Emoji | Topic | Emoji |
-| --- | --- | --- | --- |
-| Identity and access | 🔐 | Data and storage | 📦 |
-| Audit and logs | 🧾 | Model call | 🤖 |
-| Safety | 🛡️ | People and roles | 👤 |
-| Tests and evals | 🧪 | Cost | 💰 |
-| Deploy and release | 🚀 | Latency | ⏱️ |
-| Configuration | ⚙️ | Integration | 🔌 |
+```text
+🔐 Identity and access   📦 Data and storage   🧾 Audit and logs    🤖 Model call
+🛡️ Safety                👤 People and roles   🧪 Tests and evals   💰 Cost
+🚀 Deploy and release    ⏱️ Latency            ⚙️ Configuration     🔌 Integration
+```
 
 - Lead a list or table with topics only when its 3 or more items mix topics.
   One emoji per line, never on every line of a uniform list.
@@ -195,6 +198,7 @@ Code: `EMOJI`.
 | `readme-project` | 200 |
 | `readme-folder` | 80 |
 | `how-to`, `explanation` | 200 |
+| `explanation`, brief profile | 120 |
 | `reference`, `requirements` | 300 |
 | `index` | 120; none for the ADR directory's README |
 | `adr` | 80 |

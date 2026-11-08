@@ -12,14 +12,15 @@ with `DATA` nodes for payloads, transient state, or a conceptual data flow.
 
 ## Entity Rules
 
-- Use physical singular table names exactly as defined in DDL.
+- Use physical singular table names exactly as defined in DDL. This overrides the
+  [title wording](mermaid-visual.md#wording) rules.
 - Show primary keys, foreign keys, business unique keys, and fields needed to explain lifecycle.
 - Omit routine columns when they add no relationship or lifecycle information.
 - Put nullability or index tags in quoted attribute comments.
 - Label every relationship with a short verb.
 - Keep one aggregate or closely coupled group per diagram.
 
-Prefer four to eight entities, and never more than eight. An entity named only
+Draw four to eight entities. An entity named only
 in a relationship still draws as a box, so it counts. Separate aggregates when
 labels shrink below normal Markdown preview size.
 

@@ -70,17 +70,18 @@ managed service, never generic `SYSTEM`, `SERVICE`, or `DATA`.
 Draw a store, `CLOUD SQL`, `AZURE SQL`, `MEMORYSTORE`, `OBJECT STORAGE`, or a
 [named store](mermaid-application.md#grammar) such as `POSTGRES`, as a cylinder, `id[("...")]`, and every other resource as a rectangle, `id["..."]`.
 
-Named technologies such as `CLOUD RUN` and `POSTGRES` appear in application
-diagrams too, so an infrastructure diagram also draws a project, network or
-other infrastructure-only type; the lint keys the family on it.
+Application diagrams also use [named technologies](mermaid-application.md#grammar) such as
+`CLOUD RUN` and `POSTGRES`, so they decide nothing. The lint marks a diagram as infrastructure
+only when it draws another type from the table, or a `NETWORK`, `DATACENTER`, `SUBSCRIPTION` or
+`GCP PROJECT` boundary. `REPO`, `ENVIRONMENT` and `TRUST BOUNDARY` frames alone do not count.
 
 Use a specific engine such as `POSTGRES` when it helps the reader more than
 the hosting product. Add a new uppercase type only when it is the official
-service or technology name and existing types would mislead.
+service or technology name and existing types would mislead. Add it to this table as the
+[application reference](mermaid-application.md#grammar) says for a new TYPE.
 
 ## Layout
 
-- Prefer three sibling resources per row; accept four only after visual inspection.
 - Keep foundational repositories above repositories that consume their resources.
 - Use one box per independently deployed resource when failure or ownership differs.
 - Group repeated instances only when they share lifecycle, owner, and platform type.

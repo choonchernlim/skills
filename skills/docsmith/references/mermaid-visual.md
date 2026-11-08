@@ -7,7 +7,7 @@ Type: reference
 
 > **Audience:** the writer, before drawing or editing any diagram, with [mermaid.md](mermaid.md).
 
-Every diagram in a project should read the same way, so a reader learns the shapes and colors once. This page sets those shared rules.
+Every diagram shares these shapes, titles and colors, so a reader learns them once.
 
 ## Table of Contents
 
@@ -22,11 +22,13 @@ Every diagram in a project should read the same way, so a reader learns the shap
 ### Layout
 
 - Read top to bottom at normal IDE and repository preview width.
-- Prefer three siblings abreast; four is the maximum after rendering proves they remain readable.
-- Keep one connected graph per block. Split it by boundary or phase before text becomes too small to
-  read without zooming.
+- Prefer three siblings abreast; go up to the [size budget](mermaid.md#size-budget) only after
+  rendering proves them readable.
+- Split a diagram by boundary or phase before text becomes too small to read without zooming.
 
 ### Edges
+
+These rules hold in a `graph TD`; the [runtime reference](mermaid-runtime.md) sets sequence arrows.
 
 - Label every edge, quoted, in one to four words: `-->|"validates"|`.
 - Use short noun labels and verb-led edges. Put order numbers on edges or messages as `1: text`,
@@ -34,7 +36,6 @@ Every diagram in a project should read the same way, so a reader learns the shap
 - Link only with `-->`, `-.->`, or `==>`, or their [one-character-longer forms](mermaid.md#portable-syntax),
   so every edge reads in one direction.
 - Draw one edge per line, so every relationship gets its own label.
-- Draw edges as straight runs with rounded corners, through the [flowchart line](mermaid.md#flowchart-line).
 - Place every edge label on a straight vertical run, never on a bend, except as the last bullet allows.
   - Mermaid draws a label at its own point halfway down the edge, so the edge bends there whenever
     its two nodes are not aligned.
@@ -72,18 +73,13 @@ A title names the thing in plain words; the tag says what kind of thing it is.
   `order-history`. Drop every hyphen, except inside an acronym such as X12-EDI.
 - Use Title Case, with joining words such as "and", "of" and "via" in lower case. Keep acronyms
   and product names as written: SDK, API, X12-EDI.
-- A DECISION is a question in sentence case: "In stock?".
 - A `[REPO]` or `[GCP PROJECT]` boundary keeps its real name, such as `shop-prod`, so a reader can
   search for it.
 
 ### Identity
 
 - A node's name is its title and its tag together, so "Order [API]" and "Order [DATA]" are two
-  things. One name links one source in every document.
-- On a Sources line, give a participant its tag only when two participants share a title:
-  `Order [API] [orders.ts](../src/api/orders.ts)`.
-- Pick the TYPE by what the code is, from the family reference. A tag that sounds right but
-  misstates the code misleads more than a missing one.
+  things.
 - When shortening titles makes another document draw the same relationship, keep it in the
   document that explains it, and [compress the other](mermaid.md#ownership).
 
@@ -99,6 +95,7 @@ A diagram may show a part that is not built yet, so a reader sees where the desi
   - The suffix and the class always go together.
 - Every edge to or from it is dotted, `-.->` or `-..->`.
   - A diagram with a future part draws no other edge dotted, so a dotted line means only "not built yet".
+- A sequence diagram draws no future participant.
 - A boundary is never a future part. Frame what exists, and draw the future part inside it.
 - Its title links the ADR or guide that describes it, when one exists, never a plan or spec, which may move.
 - The legend says `dashed gray = future`.
@@ -144,17 +141,6 @@ team owners stay apart under red-green color blindness, and `person` and
   - `future` has no swatch; the legend says `dashed gray = future` instead.
 
 ```text
-graph TD
-  ...
-  class Api,Store own
-  class Planner model
-  class Backend boundary
-  classDef own fill:#2563eb33,stroke:#2563eb
-  classDef model fill:#c026d333,stroke:#c026d3,stroke-width:3px
-  classDef boundary fill:#7d879914,stroke:#7d8799,stroke-dasharray:6
-```
-
-```text
 > **Legend:** *🟦 Orders team · 🟪 model call*
 ```
 
@@ -176,11 +162,7 @@ graph TD
 
 - The name holds 24 characters or fewer. Mermaid wraps a longer name and
   hides the extra line behind the first node.
-- Without the [flowchart line](mermaid.md#flowchart-line), the type line overlaps the
-  first node in Azure DevOps and IntelliJ.
-  - The two title lines also sit left-aligned, since Mermaid centers node text but not a frame title.
 - Without `direction TB`, a boundary with no outside edges renders left to right.
-- [Link nodes, never a boundary](mermaid.md#portable-syntax): an edge never starts or ends on a subgraph.
 - An edge that enters a boundary from above may cross its centered title.
   Keep the title short so it stays legible.
 

@@ -7,8 +7,7 @@ Type: reference
 
 > **Audience:** the writer, before drawing or editing any diagram.
 
-Load [mermaid-visual.md](mermaid-visual.md) with this file: it holds the shapes, titles, colors and
-boundaries every diagram shares.
+Load [mermaid-visual.md](mermaid-visual.md) with this file.
 
 ## Table of Contents
 
@@ -22,7 +21,8 @@ boundaries every diagram shares.
 
 ## Families
 
-Choose one family by what the reader must learn. Load only its reference.
+Choose one family per diagram by what the reader must learn, and load its reference. A runtime
+diagram also loads [mermaid-application.md](mermaid-application.md#grammar) for its TYPE list.
 
 | Reader Question | Family | Owner File | Reference |
 | --- | --- | --- | --- |
@@ -91,10 +91,6 @@ subgraph Web["<a href='../src/web/README.md'>Web App 🌐</a><br/>[DEPLOYMENT]"]
 
 - Each item is the title, a space, and its link. Join several links for one
   title with `, `.
-- The same name links the same source in every diagram (`NODE`), so a name
-  linked in one diagram is linked wherever it appears.
-  - A node and a boundary are matched apart, since a frame often shares its
-    name with a node it holds.
 - A table or paragraph cites its sources on the same boxed line, with no
   titles: `> **Sources:** *[orders.ts](../src/api/orders.ts) · [Spec](https://example.com)*`.
 
@@ -113,7 +109,7 @@ diagram type. Use only syntax that every one of them accepts.
 | Write a step number as `1: text`. | Mermaid 11 parses a label as Markdown, and `1. text` draws "Unsupported markdown: list". |
 | Never open a label with `-`, `*`, `+`, `>`, `#`, `1.`, or `1)`, and never use a backtick Markdown string. | The same Markdown parsing. |
 | Lengthen a link by one character at most, and only one with a piped label: `--->`, `===>`, or `-..->`. | Longer arrows and lengthened inline labels are not drawn alike in every viewer. |
-| Never give a node or edge an `@` id or `@{ }` properties, except a [stacked node](mermaid-visual.md#shared-visual-language). | Older Mermaid releases reject the syntax and drop that line's edge. Azure DevOps and IntelliJ draw both stacked shapes. |
+| Never give a node or edge an `@` id or `@{ }` properties, except a [stacked node](mermaid-visual.md#shapes). | Older Mermaid releases reject the syntax and drop that line's edge. Azure DevOps and IntelliJ draw both stacked shapes. |
 | Link nodes, never a boundary. | Azure DevOps rejects an edge that starts or ends on a subgraph. |
 | Never use `click` or the sequence `link` directive. | Viewers ignore them, and the tooltip is hidden or unreadable. |
 | Never set configuration, themes, `style`, or `linkStyle`, except the [participant](mermaid-runtime.md#owner-bands) and [flowchart](#flowchart-line) lines. Color only through the [palette](mermaid-visual.md#color). | Each renderer supplies its own light or dark theme; only the palette's see-through fills read in both. |
@@ -155,18 +151,9 @@ and link the two explanations.
 
 ## Render and Inspect
 
-Render every Mermaid block in the touched files before handoff. Run the
-script; do not read it.
-
-```bash
-python3 scripts/render_mermaid.py docs/*.md docs/*/*.md README.md
-```
-
-The script prints one PNG path per diagram. Open each PNG at its normal
-display size. The script renders at double scale so a thin line through a
-label is visible. It renders with the mermaid-cli version [`render_mermaid.py`](../scripts/render_mermaid.py) pins, which honors each
-block's [flowchart line](#flowchart-line), so curves, label positions and
-boundary titles look as they do in the viewers.
+Render every Mermaid block in the touched files before handoff, with the render command in
+SKILL.md's Step 4. Run the script; do not read it. Open each PNG it prints at normal size: it
+renders at double scale, so a thin line through a label shows.
 
 Reject a diagram with any of these:
 

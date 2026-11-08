@@ -14,13 +14,13 @@ with a two-line label.
 
 ## Participants and Messages
 
-Use the application node vocabulary. Label every participant as
+Take each TYPE from the [application list](mermaid-application.md#grammar). Label every participant as
 `Title<br/>[TYPE]`. Number every message as `1: text` and keep its text to one action.
 
 - Solid arrows are calls or commands.
 - Dashed arrows are responses.
 - Use `opt` for optional behavior and `alt` for mutually exclusive outcomes.
-- Split by phase before exceeding seven participants or twelve messages.
+- Split by phase before exceeding the [size budget](mermaid.md#size-budget).
 - Do not add a participant only to hold a note.
 
 Sequence diagrams draw no deployment or trust boundaries. When those matter
@@ -28,8 +28,8 @@ more than order, create a separate application or infrastructure diagram.
 
 ## Owner Bands
 
-Every participant sits in one owner band, so a box keeps the owner color it
-has in every flowchart. A band is `box <color> <owner name>`, its participant
+Every participant sits in one owner band, so a box keeps its flowchart color,
+except an `[AGENT]`, which takes its owner's band. A band is `box <color> <owner name>`, its participant
 lines, then `end`. Mermaid reads `#` in a `box` line as a comment, so a band
 takes the `rgba` form of its owner's [palette](mermaid-visual.md#color) fill.
 
@@ -51,13 +51,9 @@ takes the `rgba` form of its owner's [palette](mermaid-visual.md#color) fill.
 - Two bands may share an owner when call order separates its participants.
 
 A participant takes no class, so its box would wear the viewer theme's color.
-Copy this line exactly as the second line of every sequence diagram. It makes
+Copy the example's second line exactly into every sequence diagram. It makes
 each box see-through, so it shows its band's tint, and draws borders and
 lifelines in slate. Azure DevOps reads only the first line as the diagram type.
-
-```text
-%%{init: {"themeVariables": {"actorBkg": "transparent", "actorBorder": "#7d8799", "actorLineColor": "#7d8799", "labelBoxBorderColor": "#7d8799"}}}%%
-```
 
 ````markdown
 ```mermaid
@@ -80,6 +76,7 @@ sequenceDiagram
 ## Sources and Steps
 
 List participants on the [Sources line](mermaid.md#source-links) in
-declaration order. A numbered list may combine adjacent request and response
+declaration order. Give one its tag only when two share a title:
+`Order [API] [orders.ts](../src/api/orders.ts)`. A numbered list may combine adjacent request and response
 messages when one explanation covers both without losing an authorization,
 validation, or persistence boundary.

@@ -49,7 +49,7 @@ it. No identifiers or paths yet.
 
 ### Prerequisites
 
-Tools and versions, one bullet each, with install links.
+Tools and their major versions, one bullet each, with install links.
 
 ### Installation
 
@@ -68,8 +68,8 @@ The run command, what to expect, and a "Run the Checks" subsection.
 
 Fill guidance:
 
-- The Introduction routes; depth lives in `docs/`. Every fact here is one
-  sentence plus a link to its owner.
+- The Introduction routes; depth lives in `docs/`, as
+  [one home per fact](style.md#one-home-per-fact) says.
 - The diagram shows context only: the project as one `SYSTEM` node among its
   users and external systems.
   - The node's Source is `docs/architecture.md`, which draws the inside.
@@ -129,7 +129,7 @@ Fill guidance:
 - To Add answers "where does my change go" for each thing a developer adds here, one row each. It is often the most read section.
 - File Ownership lists hand-written runtime files only. Tests, styles, and
   generated artifacts are omitted.
-- Cross-cutting facts (team ownership, extension rule, contracts) are one
-  sentence plus a link to the owning `docs/` guide, never restated.
+- Cross-cutting facts (team ownership, extension rule, contracts) follow
+  [one home per fact](style.md#one-home-per-fact), linking the owning `docs/` guide.
 - The optional diagram shows this folder's internal dependencies only, never
   a relationship that `docs/architecture.md` already draws.

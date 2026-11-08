@@ -21,15 +21,11 @@ only when their dependency is the point of the diagram.
 
 | Element | Rule |
 | --- | --- |
-| Type | `graph TD` for static structure. |
 | Node label | `Title<br/>[TYPE]`, quoted, with TYPE from the closed list below. |
 | Title | One to three words that never repeat the tag, [linked](mermaid.md#source-links) if it has a source. A plural title is [stacked](mermaid-visual.md#shapes). |
 | Shape | Chosen by TYPE from the table below, in classic Mermaid syntax that every viewer draws. |
-| Subgraph | A real typed boundary in the shared [boundary format](mermaid-visual.md#boundaries). |
-| Color | Required, from the shared [palette](mermaid-visual.md#color). |
-| Edge label | Required on every edge, quoted, one to four words, a verb: `-->\|"validates"\|`. |
-| Step numbers | Prefix edge labels `1:`, `2:` when the diagram is a flow. Numbers mean order, never ownership. |
-| Forbidden | `click`, horizontal flowcharts, decorative subgraphs, ASCII diagrams, and anything outside the [portable syntax](mermaid.md#portable-syntax). |
+| Step numbers | Prefix `1:`, `2:` in a flow, for order only. A DECISION's answers share one number; side edges take none. |
+| Forbidden | Horizontal flowcharts, decorative subgraphs, and ASCII diagrams. |
 
 | TYPE | Means | Shape | Syntax |
 | --- | --- | --- | --- |
@@ -45,11 +41,13 @@ only when their dependency is the point of the diagram.
 | Named technology | A store's engine, a vendor service or a runtime, from the list below | Cylinder for a store, otherwise rectangle | `id[("...")]`, `id["..."]` |
 | DECISION | A branch taken in code | Rhombus | `id{"..."}` |
 
-A DECISION title is a question ending in `?`, held to three words since a
-rhombus balloons around a longer label. Each edge out of it names one answer.
-It is a branch in code and takes that code's owner class. A model's choice
-branches from the `[AGENT]` node instead, and each of those edges names one
-answer too.
+A DECISION is a branch in code:
+
+- Its title is a question in sentence case, an exception to Title Case: "In stock?".
+- It holds three words at most, since a rhombus balloons around a longer label.
+- Each edge out of it opens with one answer, then its verb: `yes, stores order`.
+- It takes that code's owner class. A model's choice branches from the `[AGENT]` node instead,
+  and each of those edges names one answer too.
 
 A TOOL node never ends the flow. Draw an edge from it to the node or person
 that gets its result: the service it calls, the store it edits, or the person
@@ -69,8 +67,8 @@ Choose the TYPE by what the code is, not by what it is called:
   - Vendor services and runtimes: `VERTEX AI`, `SPEECH-TO-TEXT`, `TEXT-TO-SPEECH`, `APIGEE`, `LANGFUSE`, `ENTRA ID`, `CLOUD RUN`, `AZURE PIPELINES`, `AZURE REPOS`, `AZURE ARTIFACTS`.
   - The title still names the thing, never the technology: "Order Store [POSTGRES]", not "Postgres [POSTGRES]".
 
-A new TYPE requires editing this file, so one concept is never tagged two
-ways in two documents.
+A new TYPE needs this file and the lint's type list changed together, so one
+concept is never tagged two ways in two documents.
 
 ## Boundaries
 
@@ -80,7 +78,7 @@ shared [boundary format](mermaid-visual.md#boundaries).
 
 ## Example
 
-The block below is copied verbatim into a document, with real paths.
+The block below shows a finished section as it appears in a document.
 
 ````markdown
 The order API checks inventory before it stores the order.

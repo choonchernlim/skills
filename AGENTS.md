@@ -37,7 +37,8 @@ Markdown plus standard-library Python scripts.
 | Install and usage guide | `README.md` | docsmith lint |
 | Docs skill | `skills/docsmith/SKILL.md` | `skills/docsmith/scripts/test_lint_docs.py` |
 | Docs skill rules, one file per topic | `skills/docsmith/references/` | docsmith lint |
-| Interview skill, one file | `skills/grill-me/SKILL.md` | none |
+| Interview skill | `skills/grill-me/SKILL.md` | `skills/grill-me/scripts/test_next_version.py` |
+| Specs and plans, one folder per change | `specs/` | none |
 | Token audit skill | `skills/tokenminator/SKILL.md` | `skills/tokenminator/scripts/test_audit_tokens.py` |
 | Token audit playbooks, one per area | `skills/tokenminator/references/` | docsmith lint |
 | Templates the token audit skill ships | `skills/tokenminator/assets/` | `skills/tokenminator/scripts/test_assets.py` |

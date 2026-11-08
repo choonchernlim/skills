@@ -22,7 +22,7 @@ Each skill is self-contained, so you can install one without the others.
 
 | Skill | What It Does |
 | --- | --- |
-| [grill-me](skills/grill-me/SKILL.md) | Interviews you about a plan or design until every open decision is resolved, then writes the plan. |
+| [grill-me](skills/grill-me/SKILL.md) | Interviews you about a plan until every decision is resolved, then records it as a versioned spec and plan. |
 | [tokenminator](skills/tokenminator/SKILL.md) | Audits a repository for wasted agent tokens, fixes the mechanical part by script, and ships the check runner. |
 | [docsmith](skills/docsmith/SKILL.md) | Writes READMEs, guides, requirements, and ADRs to one house style, checked by a linter. |
 

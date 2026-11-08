@@ -1,6 +1,6 @@
 {
   "requires": ["git"],
-  "inert": [".gitignore", "LICENSE", "CLAUDE.md", ".idea/*", ".agents/*", ".claude/*", ".codex/*"],
+  "inert": [".gitignore", "LICENSE", "CLAUDE.md", ".idea/*", ".agents/*", ".claude/*", ".codex/*", "specs/*"],
   "checks": [
     {
       "id": "docsmith-selftest",
@@ -19,6 +19,12 @@
       "cmd": ["python3", "skills/tokenminator/scripts/test_assets.py"],
       "parse": "blocks",
       "paths": ["skills/tokenminator/assets/*", "skills/tokenminator/scripts/test_assets.py", "scripts/*"]
+    },
+    {
+      "id": "grill-me-selftest",
+      "cmd": ["python3", "skills/grill-me/scripts/test_next_version.py"],
+      "parse": "blocks",
+      "paths": ["skills/grill-me/*"]
     },
     {
       "id": "agents-paths",

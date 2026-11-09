@@ -65,7 +65,7 @@ Branch `feature/<name>`, in the main checkout. Keep no unpushed commits here, so
 | Once per repository | Add `.claude/worktrees/` to `.gitignore` or `.git/info/exclude` | Worktree folders stay untracked, and grill-me starts offering worktrees | ✅ Today |
 | Once per feature | `git switch -c feature/<name> develop`, then `git push -u origin feature/<name>` | The shared feature branch exists | ✅ Today |
 | You start any task | `/grill-me <task>` | A plan; for a large one, grill-me offers a new worktree | ✅ Today; 🟡 offer after v002 build |
-| The worktrees you want are merged | `/review-feature` | Pulls, merges `develop`, then simplify and architecture review; you approve fixes at ③ | 🟡 v005 |
+| The worktrees you want are merged | `/review-feature` | Pulls, merges `develop`, then simplify and architecture review; you approve fixes at ③ | ✅ Today |
 | Gate ③ is clean | Open the pull request to `develop` | Ships the feature | ✅ Today |
 
 ### Worktree Layer
@@ -237,12 +237,12 @@ graph TD
 > **Legend:** *🟦 your branches · 🟥 you · 🟪 model call*
 
 1. You run `/review-feature` in the feature checkout once the worktrees you want in the pull request are merged.
-2. It runs `git pull --ff-only`, merges the remote parent, and reads the range since the `refs/reviewed/<branch>` marker.
+2. It fetches and catches up with the remote branch, refusing local commits it did not make, then merges the remote parent and reads the range since the `refs/reviewed/<branch>` marker.
    - It lists every `Clash-resolved:` trailer in that range, so you see each agent-resolved conflict once more.
 3. Two reviewers always run, because you asked for both:
    - Simplify finds duplication and needless code across the solutions.
    - Architecture checks that the solutions fit together and follow the project's structure.
-   - A dead-code reviewer joins when the range deletes or replaces functions, and a docs reviewer when it edits a guide or a README.
+   - A dead-code reviewer joins when the range removes lines of code, and a docs reviewer when it edits documentation.
 4. The fixer applies confirmed findings and shows you the diff at gate ③. On approval it commits, pushes, and moves the marker.
 
 ## Grill-me Changes
@@ -342,7 +342,7 @@ Your shared agent policy lives in your dotfiles at `home/ai/AGENTS.md`. Skills t
 
 - **An agent-resolved conflict passes the checks but is wrong.** Semantic conflicts can merge cleanly ([Q1](research.md#branch-lifetime)).
   - Every judgment call is a `Clash-resolved:` trailer, shown at gate ② and again at gate ③.
-- **The local feature branch falls behind the remote.** New worktrees start from the fetched upstream, and `/review-feature` pulls first; a fast-forward pull fails safely if you left unpushed commits.
+- **The local feature branch falls behind the remote.** New worktrees start from the fetched upstream, and `/review-feature` catches up first, and refuses unpushed commits it did not make.
 - **Two worktrees merge at once.** The second push is rejected, and the skill rebuilds its base and shows a new packet.
 - **Approval fatigue.** Three gates, each with the work checked, keep your attention where it counts.
 - **A moved file carries unrelated edits.** The mid-run move moves whole files, and lists every file before it moves anything.

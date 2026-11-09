@@ -9,6 +9,12 @@
       "paths": ["skills/docsmith/*"]
     },
     {
+      "id": "review-feature-selftest",
+      "cmd": ["python3", "skills/review-feature/scripts/test_review_feature.py"],
+      "parse": "blocks",
+      "paths": ["skills/review-feature/*"]
+    },
+    {
       "id": "tokenminator-selftest",
       "cmd": ["python3", "skills/tokenminator/scripts/test_audit_tokens.py"],
       "parse": "blocks",

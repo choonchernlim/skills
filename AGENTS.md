@@ -37,6 +37,7 @@ Markdown plus standard-library Python scripts.
 | Install and usage guide | `README.md` | docsmith lint |
 | Docs skill | `skills/docsmith/SKILL.md` | `skills/docsmith/scripts/test_lint_docs.py` |
 | Docs skill rules, one file per topic | `skills/docsmith/references/` | docsmith lint |
+| Feature review skill | `skills/review-feature/SKILL.md` | `skills/review-feature/scripts/test_review_feature.py` |
 | Worktree merge skill | `skills/merge-worktree/SKILL.md` | `skills/merge-worktree/scripts/test_merge_worktree.py` |
 | Interview skill | `skills/grill-me/SKILL.md` | `skills/grill-me/scripts/test_next_version.py` |
 | Interview skill's worktree script | `skills/grill-me/scripts/new_worktree.py` | `skills/grill-me/scripts/test_new_worktree.py` |

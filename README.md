@@ -27,6 +27,7 @@ Each skill is self-contained, so you can install one without the others.
 | [tokenminator](skills/tokenminator/SKILL.md) | Audits a repository for wasted agent tokens, fixes the mechanical part by script, and ships the check runner. |
 | [docsmith](skills/docsmith/SKILL.md) | Writes READMEs, guides, requirements, and ADRs to one house style, checked by a linter. |
 | [merge-worktree](skills/merge-worktree/SKILL.md) | Merges a finished worktree into its feature branch as one reviewed merge, then removes it. |
+| [review-feature](skills/review-feature/SKILL.md) | Reviews everything merged into a feature branch since its last review as one change, then pushes the fixes you approve. |
 
 ## Getting Started
 

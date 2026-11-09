@@ -170,6 +170,24 @@ def padded_branch_name_owns_version(base: str) -> tuple:
     return [got["version"], got["folder"]], [7, "specs/v007-padded"]
 
 
+def claude_branch_name_owns_version(base: str) -> tuple:
+    got = run(worktree(repo(base), "worktree-v12", "scratch"), "--topic", "Claude Lane")
+    return [got["version"], got["source"], got["folder"]], [12, "branch", "specs/v012-claude-lane"]
+
+
+def claude_branch_holds_its_version(base: str) -> tuple:
+    root = repo(base)
+    git(root, "branch", "worktree-v1")
+    return [run(root, "--topic", "Next")["version"]], [2]
+
+
+def switched_claude_worktree_keeps_version(base: str) -> tuple:
+    path = worktree(repo(base), "worktree-v3", "v3")
+    git(path, "switch", "-q", "-c", "feat/export")
+    got = run(path, "--topic", "Export")
+    return [got["version"], got["source"], got["problem"]], [3, "folder", None]
+
+
 def worktree_folder_owns_version(base: str) -> tuple:
     root = repo(base)
     got = run(worktree(root, "scratch", "v126"), "--topic", "Romeo")
@@ -321,6 +339,9 @@ CASES = [
     main_checkout_never_claims_a_version,
     branch_name_owns_version,
     padded_branch_name_owns_version,
+    claude_branch_name_owns_version,
+    claude_branch_holds_its_version,
+    switched_claude_worktree_keeps_version,
     worktree_folder_owns_version,
     existing_pair_is_reused,
     half_pair_gets_its_missing_file,

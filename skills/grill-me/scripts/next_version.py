@@ -6,15 +6,16 @@ different specs under one number. A pair lives in GitHub Spec Kit's folder
 shape with a v prefix: specs/v007-topic/spec.md and specs/v007-topic/plan.md.
 Rules:
 - A linked worktree named for a version owns it: its branch's last segment, or
-  else its folder's name, is `vN` or `vNNN`. It reports a problem when another
-  branch, worktree folder, reservation or spec folder also holds that version.
+  else its folder's name, is `vN`, `vNNN` or `worktree-vN`. It reports a
+  problem when another branch, worktree folder, reservation or spec folder
+  also holds that version.
 - `--version N` revises the pair that version N already has.
 - Anywhere else the script reserves one past the highest version in use: any
   spec folder in the working tree or ever added on any branch, any branch or
-  worktree folder named `vN`, and any earlier reservation. It creates the ref
-  refs/grill-me/vN, which every worktree shares and git creates only once, so
-  two sessions running at once still get different numbers. Each such run uses
-  up a number, so run it once per new pair.
+  worktree folder named `vN` or `worktree-vN`, and any earlier reservation.
+  It creates the ref refs/grill-me/vN, which every worktree shares and git
+  creates only once, so two sessions running at once still get different
+  numbers. Each such run uses up a number, so run it once per new pair.
 - A version at or above CEILING marks a running list, such as v9999-todo, and
   never counts or gets reserved.
 - Spec folders and files must not be symlinks, and a folder's name holds only
@@ -34,7 +35,7 @@ import subprocess
 import sys
 import time
 
-VERSION_NAME = re.compile(r"^v(\d+)$")
+VERSION_NAME = re.compile(r"^(?:worktree-)?v(\d+)$")
 FOLDER_VERSION = re.compile(r"^v(\d+)-")
 SAFE_FOLDER = re.compile(r"^v\d+-[a-z0-9-]+$")
 RESERVED = "refs/grill-me/"
@@ -99,16 +100,26 @@ def added_folders(root: str, specs: str, *revs: str) -> set[str]:
     return folders
 
 
-def holders(root: str) -> list[str]:
-    """Branch and reservation refs and live worktree folders: everything that can hold a version."""
-    found = lines(root, "for-each-ref", "--format=%(refname)", "refs/heads", RESERVED)
+def live_worktrees(root: str) -> list[str]:
+    """Every worktree folder git lists, the main checkout first, without those already deleted."""
     folders = []
     for line in lines(root, "worktree", "list", "--porcelain"):
         if line.startswith("worktree "):
             folders.append(os.path.realpath(line[len("worktree "):]))
         elif line.startswith("prunable"):
             folders.pop()  # its folder is gone, so it holds nothing
-    return found + folders
+    return folders
+
+
+def linked(root: str) -> bool:
+    """Whether this checkout is a linked worktree rather than the main checkout."""
+    git_dir, common = lines(root, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
+    return os.path.realpath(git_dir) != os.path.realpath(common)
+
+
+def holders(root: str) -> list[str]:
+    """Branch and reservation refs and live worktree folders: everything that can hold a version."""
+    return lines(root, "for-each-ref", "--format=%(refname)", "refs/heads", RESERVED) + live_worktrees(root)
 
 
 def reserve(root: str, version: int, topic: str) -> int:
@@ -131,8 +142,7 @@ def reserve(root: str, version: int, topic: str) -> int:
 
 def owned_version(root: str, branch: str) -> tuple[int | None, str]:
     """The version a linked worktree's branch or folder name claims; a main checkout claims none."""
-    git_dir, common = lines(root, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
-    if os.path.realpath(git_dir) != os.path.realpath(common):
+    if linked(root):
         for source, name in (("branch", branch), ("folder", root)):
             if (version := version_of(VERSION_NAME, name)) is not None:
                 return version, source
@@ -168,7 +178,9 @@ def main() -> int:
             used += [version_of(VERSION_NAME, n) for n in holders(root)]
             version = reserve(root, max((v for v in used if v is not None), default=0) + 1, topic)
         else:
-            others = [n for n in holding(VERSION_NAME, holders(root), version) if n not in {f"refs/heads/{branch}", os.path.realpath(root)}]
+            # A `vN` folder still owns its `worktree-vN` branch, the pair `claude -w vN` makes, after a branch switch.
+            own = {f"refs/heads/{branch}", f"refs/heads/worktree-v{version}", os.path.realpath(root)}
+            others = [n for n in holding(VERSION_NAME, holders(root), version) if n not in own]
             if has_ref(root, "HEAD"):
                 others += holding(FOLDER_VERSION, added_folders(root, specs, "--all", "--not", "HEAD") - here, version)
             if others:
@@ -188,10 +200,10 @@ def main() -> int:
         else:
             problem = f"v{version} has no spec folder yet; pass --topic to name a new one"
     spec, plan = (f"{folder}/spec.md", f"{folder}/plan.md") if folder else (None, None)
-    linked = [p for p in (folder, spec, plan) if p and os.path.islink(os.path.join(root, p))]
-    if linked:
+    symlinked = [p for p in (folder, spec, plan) if p and os.path.islink(os.path.join(root, p))]
+    if symlinked:
         folder, spec, plan = None, None, None
-        problem = f"spec folders and files must not be symlinks: {', '.join(linked)}"
+        problem = f"spec folders and files must not be symlinks: {', '.join(symlinked)}"
     print(json.dumps({"version": version, "source": source, "folder": folder, "spec": spec, "plan": plan,
                       "existing": existing, "problem": problem}, indent=2))
     return 0

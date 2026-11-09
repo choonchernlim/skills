@@ -27,6 +27,12 @@
       "paths": ["skills/grill-me/*"]
     },
     {
+      "id": "grill-me-worktree",
+      "cmd": ["python3", "skills/grill-me/scripts/test_new_worktree.py"],
+      "parse": "blocks",
+      "paths": ["skills/grill-me/*"]
+    },
+    {
       "id": "agents-paths",
       "cmd": ["python3", "scripts/test_agents_md.py"],
       "parse": "blocks",

@@ -23,6 +23,7 @@ Each skill is self-contained, so you can install one without the others.
 | Skill | What It Does |
 | --- | --- |
 | [grill-me](skills/grill-me/SKILL.md) | Interviews you until every decision is resolved, then records a versioned spec and plan, in a worktree when large. |
+| [research](skills/research/SKILL.md) | Checks how proven sources solve a design question, then scores each decision against them. |
 | [tokenminator](skills/tokenminator/SKILL.md) | Audits a repository for wasted agent tokens, fixes the mechanical part by script, and ships the check runner. |
 | [docsmith](skills/docsmith/SKILL.md) | Writes READMEs, guides, requirements, and ADRs to one house style, checked by a linter. |
 
@@ -31,7 +32,7 @@ Each skill is self-contained, so you can install one without the others.
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/), which provides `npx`. Nothing is built or published.
-- [Python 3](https://www.python.org/), for the `tokenminator` and `docsmith` scripts only.
+- [Python 3](https://www.python.org/), for the scripts some skills run. Each uses the standard library only.
 
 ### Install With `npx skills`
 
@@ -93,8 +94,8 @@ Claude Code.
 
 #### Run the Checks
 
-One command runs every check: the script self-tests, the docs lint, and the
-`AGENTS.md` path test. Run it before you commit a change.
+One command runs every check: the script self-tests, the docs lint, the
+`research.md` shape check, and the `AGENTS.md` path test. Run it before you commit a change.
 
 ```bash
 scripts/check --full

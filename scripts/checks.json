@@ -21,6 +21,12 @@
       "paths": ["skills/tokenminator/assets/*", "skills/tokenminator/scripts/test_assets.py", "scripts/*"]
     },
     {
+      "id": "merge-worktree-selftest",
+      "cmd": ["python3", "skills/merge-worktree/scripts/test_merge_worktree.py"],
+      "parse": "blocks",
+      "paths": ["skills/merge-worktree/*"]
+    },
+    {
       "id": "grill-me-selftest",
       "cmd": ["python3", "skills/grill-me/scripts/test_next_version.py"],
       "parse": "blocks",

@@ -26,6 +26,7 @@ Each skill is self-contained, so you can install one without the others.
 | [research](skills/research/SKILL.md) | Checks how proven sources solve a design question, then scores each decision against them. |
 | [tokenminator](skills/tokenminator/SKILL.md) | Audits a repository for wasted agent tokens, fixes the mechanical part by script, and ships the check runner. |
 | [docsmith](skills/docsmith/SKILL.md) | Writes READMEs, guides, requirements, and ADRs to one house style, checked by a linter. |
+| [merge-worktree](skills/merge-worktree/SKILL.md) | Merges a finished worktree into its feature branch as one reviewed merge, then removes it. |
 
 ## Getting Started
 

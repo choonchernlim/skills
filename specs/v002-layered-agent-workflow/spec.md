@@ -64,7 +64,7 @@ Branch `feature/<name>`, in the main checkout. Keep no unpushed commits here, so
 | Once per machine | Nothing: your dotfiles set `rerere.enabled` globally | Repeated conflicts replay their recorded resolution | ✅ After the dotfiles change |
 | Once per repository | Add `.claude/worktrees/` to `.gitignore` or `.git/info/exclude` | Worktree folders stay untracked, and grill-me starts offering worktrees | ✅ Today |
 | Once per feature | `git switch -c feature/<name> develop`, then `git push -u origin feature/<name>` | The shared feature branch exists | ✅ Today |
-| You start any task | `/grill-me <task>` | A plan; for a large one, grill-me offers a new worktree | ✅ Today; 🟡 offer after v002 build |
+| You start any task | `/grill-me <task>` | A plan; for a large one, grill-me offers a new worktree | ✅ Today |
 | The worktrees you want are merged | `/review-feature` | Pulls, merges `develop`, then simplify and architecture review; you approve fixes at ③ | 🟡 v005 |
 | Gate ③ is clean | Open the pull request to `develop` | Ships the feature | ✅ Today |
 
@@ -74,12 +74,12 @@ Branch `worktree-vN`, in `.claude/worktrees/vN`. It is never pushed; its commits
 
 | When | You Run | What Happens | Ready |
 | --- | --- | --- | --- |
-| You start a problem | Accept grill-me's offer. By hand: `herdr worktree create`, or `claude -w vN` | A worktree at the latest feature branch, with its own agent | ✅ By hand; 🟡 offer after v002 build |
-| The plan is drafted | Nothing: grill-me writes `spec.md` and `plan.md`, then waits | The worktree's agent points you to both files | 🟡 v002 build; today the plan shows in chat |
-| ① The files are written | Read them; give feedback, or say proceed | Feedback revises both files; proceed starts the build | 🟡 v002 build |
-| The agent builds | Nothing: commits need no approval here once the dotfiles rule lands | Each step: build, simplify, checks, reviewers, fixes, commit | ✅ Today; 🟡 free commits in v004 |
-| The plan is done | `/merge-worktree` | Merges `develop`, rebases, runs checks, shows the [review packet](#review-packet) | 🟡 v004 |
-| ② The packet arrives | Review it; give feedback, or approve | Feedback: the agent revises, then you run it again. Approve: merge, push, remove | 🟡 v004 |
+| You start a problem | Accept grill-me's offer. By hand: `herdr worktree create`, or `claude -w vN` | A worktree at the latest feature branch, with its own agent | ✅ Today |
+| The plan is drafted | Nothing: grill-me writes `spec.md` and `plan.md`, then waits | The worktree's agent points you to both files | ✅ Today |
+| ① The files are written | Read them; give feedback, or say proceed | Feedback revises both files; proceed starts the build | ✅ Today |
+| The agent builds | Nothing: commits need no approval here once the dotfiles rule lands | Each step: build, verify, commit; gate ② runs the reviews | ✅ After the dotfiles change |
+| The plan is done | `/merge-worktree` | Merges `develop`, rebases, runs checks, shows the [review packet](#review-packet) | ✅ Today |
+| ② The packet arrives | Review it; give feedback, or approve | Feedback: the agent revises, then you run it again. Approve: merge, push, remove | ✅ After the dotfiles change |
 
 > **Legend:** *✅ works today · 🟡 waits for the build named*
 
@@ -306,7 +306,7 @@ Someone who uses grill-me alone, on the branch they are on, keeps today's flow:
 - **grill-me offers a worktree only where worktrees are used.** In a solo repository it never asks, and builds in place as today.
 - **The one visible change** is gate ①: they read `spec.md` and `plan.md` before saying proceed, not after.
 - **`/merge-worktree` and `/review-feature` run only when invoked.** No hook or loop runs them.
-- **The new AGENTS.md rules are scoped.** Each names one of the new skills or a `worktree-vN` branch.
+- **The new AGENTS.md rules are scoped.** Each names `/merge-worktree` or a grill-me `worktree-vN` branch, except the merge-not-rebase rule for shared branches, which holds for everyone.
 
 ## Decisions
 
@@ -332,8 +332,8 @@ Your shared agent policy lives in your dotfiles at `home/ai/AGENTS.md`. Skills t
 | Change | Why |
 | --- | --- |
 | Add: "Update a shared branch by merging its parent; rebase only local worktree branches." | Agents update branches outside the skills too |
-| Add: "Approving at gate ② or ③ approves that merge's commit and push." | The skills push without a second prompt |
-| Add: "In a `worktree-vN` branch whose plan you approved, commits need no approval." | Builds run without commit prompts |
+| Add: "Approving `/merge-worktree`'s packet approves that one merge commit and its push to the target it names." v005 adds gate ③ | The skill pushes without a second prompt |
+| Add: "In a `worktree-vN` branch grill-me created for a plan you approved, commit each verified step; never push it." | Builds run without commit prompts |
 | Amend the review rule: run the passes before showing "the diff or the review packet" | Gate ② |
 
 ## Risks and Assumptions

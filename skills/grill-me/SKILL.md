@@ -12,6 +12,7 @@ Surface every assumption, ambiguity, and tradeoff before any code is written. Th
 - **One question at a time.** Wait for the answer before the next question.
 - **Resolve dependencies in order** - trunk before leaves.
 - **Explore before asking.** If the codebase, docs, or context can answer it, look it up. Ask only what requires the user's intent or judgment.
+- **Cite the evidence.** When research backs an option, name its source in the option.
 - **Ask via the host's interactive picker** (e.g. `AskUserQuestion` in Claude Code), never as a printed or code-fenced list.
   - At most 4 concrete options, the recommended one first and marked "(Recommended)".
   - Free-form answers are always allowed.
@@ -30,7 +31,7 @@ Example - _"How should the parser handle malformed input rows?"_ → **Reject th
 
 Always do these steps in order, even when the interview was skipped. Run this skill's scripts from the repository root as `python3 <this skill's folder>/scripts/<script>`; each prints JSON. When a script fails, or its `problem` is set, stop and ask how to proceed. Relay any `warnings`.
 
-1. **Draft the plan:**
+1. **Draft the plan.** First, when the `research` skill's When to Run fits a key decision, run it once over the answered decisions, and re-ask any it scores Weakened or Contradicted. Without that skill, search and cite sources inline. Then draft:
    - Shared understanding - goal and key decisions, in a few sentences.
    - Assumptions - confirmed, or clearly marked unconfirmed.
    - Numbered steps, each as `[Step] → verify: [check]`.
@@ -46,6 +47,7 @@ Always do these steps in order, even when the interview was skipped. Run this sk
    - Write to the `spec` and `plan` paths printed, revising them when they already exist:
      - `spec` holds the what and why: shared understanding, assumptions, and the definition of done.
      - `plan` holds the how: each step as `- [ ] [Step] → verify: [check]`, then the files touched.
+     - When research ran, have it save `research.md` in the same folder, and link it from `spec`.
    - Follow the repository's own spec rules where it has them; when it keeps spec folders elsewhere, pass `--dir` to `next_version.py`.
 4. **Hand off** a pair written to a new worktree, so the gate and the work happen there:
    - When `method` is `herdr`, run `handoff` if set, which starts an agent in the worktree's Herdr workspace. Tell the user to switch to workspace `vN`, and stop.

@@ -33,6 +33,18 @@
       "paths": ["skills/grill-me/*"]
     },
     {
+      "id": "research-selftest",
+      "cmd": ["python3", "skills/research/scripts/test_check_research.py"],
+      "parse": "blocks",
+      "paths": ["skills/research/*"]
+    },
+    {
+      "id": "research-files",
+      "cmd": ["python3", "skills/research/scripts/check_research.py", "{glob:specs/*/research.md}"],
+      "parse": "located",
+      "paths": ["specs/*/research.md", "skills/research/scripts/check_research.py"]
+    },
+    {
       "id": "agents-paths",
       "cmd": ["python3", "scripts/test_agents_md.py"],
       "parse": "blocks",

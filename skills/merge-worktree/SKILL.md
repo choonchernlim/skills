@@ -1,13 +1,14 @@
 ---
 name: merge-worktree
 description: Merges a finished git worktree branch into the remote feature branch it was cut from, as one reviewed --no-ff merge with the parent branch's latest changes, then removes the worktree. Use when the work in a worktree is done, or when asked to merge, land or finish a worktree.
+allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/merge_worktree.py *)
 ---
 
 # Merge Worktree
 
 Bring one finished worktree into its feature branch as a single reviewed merge. Run it inside the worktree; it pushes to the remote feature branch, so the feature checkout is never touched.
 
-Run `python3 <this skill's folder>/scripts/merge_worktree.py <command>`. Each command prints JSON with a `status`; relay any `problem` and `warnings`. Approval at gate ② covers that one merge commit and its push, and nothing else; any later run needs a new approval.
+Run `<this skill's folder>/scripts/merge_worktree.py <command>` as the whole Bash command, so the skill's pre-approval matches it: no `python3`, `cd`, environment variables, pipes or redirects; `--worktree <path>` acts on another folder. Single-quote `--title` and `--clash` values. Each command prints JSON with a `status`; relay any `problem` and `warnings`. Approval at gate ② covers that one merge commit and its push, and nothing else; any later run needs a new approval. Skipping the pre-push hook needs its own yes.
 
 ## Steps
 
@@ -20,7 +21,7 @@ Run `python3 <this skill's folder>/scripts/merge_worktree.py <command>`. Each co
 2. **Resolve conflicts.** `phase` says whether the parent branch is merging into the base or the worktree is rebasing onto it.
    - Inside the plan's scope, the plan decides. Elsewhere, keep the feature branch's behavior.
    - Check each file in `replayed` too: `rerere` reapplied a recorded resolution there. In the `base` phase, give its `--clash` note again, since each run rebuilds the base.
-   - Stage each file, then run `continue` with one `--clash "<path>: <why>"` per judgment call. Repeat until `ready`.
+   - Stage each file, then run `continue` with one `--clash '<path>: <why>'` per judgment call. Repeat until `ready`.
    - When a conflict needs the user's intent, run `abort` and ask.
 3. **Check and review.** On the rebased branch, run the project's checks and the review passes your instructions require.
    - Fix confirmed findings and commit, then run `prepare` again so the packet matches HEAD.
@@ -37,15 +38,15 @@ Run `python3 <this skill's folder>/scripts/merge_worktree.py <command>`. Each co
    - **Approve and merge (Recommended)** - the only consent. On silence or an ambiguous reply, re-ask.
    - **Give feedback** - revise, commit, and go back to step 1.
    - **Cancel** - push nothing. The worktree stays, rebased onto the base.
-5. **Land.** Run `land --tip <the approved tip> --title "<the spec's topic>"`.
+5. **Land.** Run `land --tip <the approved tip> --title '<topic from the spec>'`.
    - **rejected** - another merge reached the feature branch first. Go back to step 1, say what changed in the new packet, and ask again.
    - **stale** - the worktree is not the approved tip. Go back to step 1.
-   - **refused** - relay the `problem`. The packet still stands, so `land` may be retried once the cause is fixed.
+   - **refused** - relay the `problem`. The packet still stands, so `land` may be retried once the cause is fixed. When it carries `hook`, the pre-push hook refused the push: relay its output and ask via picker, **Fix the cause (Recommended)** / **Land, skipping the hook**. Only that answer reruns `land` with `--no-verify`; on silence or an ambiguous reply, re-ask. Never turn hooks off any other way.
    - **landed** - report the `merge` commit and where it was `pushed`. The feature checkout is now behind; `git pull --ff-only` there catches it up.
-6. **Clean up, last.** Report first: `cleanup` removes this folder, and under Herdr it closes this workspace with its agent.
+6. **Clean up, last, without asking.** Report first: `cleanup` removes this folder with its ignored files, and under Herdr it closes this workspace with its agent. Relay `dropped` and `dropped_count` as soon as it returns; under Herdr this agent may close next.
    - A host that moved into the worktree, such as Claude Code after `EnterWorktree`, leaves it first (`ExitWorktree` with keep), then runs `--worktree <path> cleanup`.
    - **removed** - the worktree and its branch are gone.
    - **removing** - Herdr is closing the workspace; the branch goes after it, and the result lands in `log`.
-   - **refused** - nothing was removed; relay the `problem` and `files`. Ignored files need the user's yes before `cleanup --drop-ignored`.
+   - **refused** - nothing was removed; relay the `problem` and `files`.
 
 The fresh base is the remote feature branch with its remote parent merged in, so the parent's changes arrive at every merge. The script finds both branches in git config; none is named here.

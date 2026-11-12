@@ -36,6 +36,8 @@ with open(os.environ["FAKE_HERDR_LOG"], "a") as log:
 if args[:2] == ["worktree", "list"]:
     print(json.dumps({{"result": {{"worktrees": [{{"path": os.environ["FAKE_WORKTREE"], "open_workspace_id": "w7"}}]}}}}))
 elif args[:2] == ["worktree", "remove"]:
+    if args[2:] != ["--workspace", "w7"]:
+        sys.exit("unknown option: " + " ".join(args[2:]))
     if os.environ.get("FAKE_HERDR_MODE") == "fail":
         sys.exit("remove failed")
     subprocess.run(["git", "-C", os.environ["FAKE_MAIN"], "worktree", "remove", os.environ["FAKE_WORKTREE"]], check=True)
@@ -287,7 +289,7 @@ def failed_push_keeps_the_packet(base: str) -> tuple:
     refused = run(places["v1"], "land", "--tip", ready["tip"])
     os.remove(os.path.join(places["remote"], "hooks", "pre-receive"))
     got = run(places["v1"], "land", "--tip", ready["tip"])
-    return [refused["status"], got["status"]], ["refused", "landed"]
+    return [refused["status"], "hook" in refused, got["status"]], ["refused", False, "landed"]
 
 
 def land_after_a_new_commit_is_stale(base: str) -> tuple:
@@ -534,16 +536,66 @@ def cleanup_refuses_untracked_files(base: str) -> tuple:
     return [got["status"], got["files"], os.path.isdir(places["v1"])], ["refused", ["notes.txt"], True]
 
 
-def cleanup_asks_before_dropping_ignored_files(base: str) -> tuple:
+def cleanup_drops_ignored_files(base: str) -> tuple:
     places = world(base)
     landed(places)
     with open(os.path.join(places["main"], ".git", "info", "exclude"), "a", encoding="utf-8") as handle:
-        handle.write("*.env\n")
+        handle.write("*.env\nbuild/\n")
     write(places["v1"], "secret.env", "key\n")
-    asked = run(places["v1"], "cleanup")
-    got = run(places["v1"], "cleanup", "--drop-ignored")
-    return [asked["status"], asked["files"], got["status"], os.path.isdir(places["v1"])], \
-        ["refused", ["secret.env"], "removed", False]
+    write(places["v1"], "build/out/a.js", "a\n")
+    got = run(places["v1"], "cleanup")
+    return [got["status"], sorted(got["dropped"]), got["dropped_count"], os.path.isdir(places["v1"])], \
+        ["removed", ["build/", "secret.env"], 2, False]
+
+
+def cleanup_refuses_nested_repositories(base: str) -> tuple:
+    places = world(base)
+    landed(places)
+    with open(os.path.join(places["main"], ".git", "info", "exclude"), "a", encoding="utf-8") as handle:
+        handle.write("cache/\n")
+    inner = os.path.join(places["v1"], "cache", "tool")
+    os.makedirs(inner)
+    git(inner, "init", "-q")
+    write(inner, "notes.txt", "mine\n", "unpushed work")
+    got = run(places["v1"], "cleanup")
+    return [got["status"], got["files"], os.path.isdir(inner)], ["refused", ["cache/tool/"], True]
+
+
+def script_runs_directly(base: str) -> tuple:
+    # The skill pre-approves the bare script path; run through python3, it would prompt again.
+    done = subprocess.run([SCRIPT, "--help"], capture_output=True, text=True, env=ENV)
+    return [done.returncode, "prepare" in done.stdout], [0, True]
+
+
+def land_no_verify_skips_a_failing_pre_push_hook(base: str) -> tuple:
+    places = world(base)
+    hook(os.path.join(places["main"], ".git"), "pre-push")
+    tip = run(places["v1"], "prepare")["tip"]
+    early = run(places["v1"], "land", "--tip", tip, "--no-verify")
+    blocked = run(places["v1"], "land", "--tip", tip)
+    got = run(places["v1"], "land", "--tip", tip, "--no-verify")
+    return ([early["status"], "no-verify" in str(early["problem"]), blocked["status"], blocked.get("hook"),
+             got["status"], got["merge"] == remote_head(places)],
+            ["refused", True, "refused", "pre-push", "landed", True])
+
+
+def abort_outside_a_prepare_is_refused(base: str) -> tuple:
+    places = world(base)
+    git(places["v1"], "switch", "-q", "-c", "side")
+    write(places["v1"], "app1.txt", "side\n", "side edit")
+    git(places["v1"], "switch", "-q", "worktree-v1")
+    write(places["v1"], "app1.txt", "mine\n", "my edit")
+    subprocess.run(["git", "-C", places["v1"], "merge", "-q", "side"], capture_output=True, env=ENV)
+    got = run(places["v1"], "abort")
+    merging = os.path.exists(git(places["v1"], "rev-parse", "--path-format=absolute", "--git-path", "MERGE_HEAD"))
+    return [got["status"], merging], ["refused", True]
+
+
+def finish_needs_a_pending_cleanup(base: str) -> tuple:
+    places = world(base)
+    got = run(places["main"], "finish", "--main", places["main"])
+    branches = git(places["main"], "branch", "--list", "worktree-v1")
+    return [got["status"], branches], ["refused", "+ worktree-v1"]
 
 
 def hand_made_worktree_uses_the_main_branch(base: str) -> tuple:
@@ -606,7 +658,12 @@ CASES = [
     narrow_fetch_config_still_sees_the_remote,
     renames_and_edits_are_listed_whole,
     cleanup_refuses_untracked_files,
-    cleanup_asks_before_dropping_ignored_files,
+    cleanup_drops_ignored_files,
+    cleanup_refuses_nested_repositories,
+    land_no_verify_skips_a_failing_pre_push_hook,
+    script_runs_directly,
+    abort_outside_a_prepare_is_refused,
+    finish_needs_a_pending_cleanup,
     hand_made_worktree_uses_the_main_branch,
     failed_fetch_is_refused,
 ]
@@ -617,7 +674,7 @@ def check(case) -> str | None:
     with tempfile.TemporaryDirectory() as base:
         try:
             got, want = case(os.path.realpath(base))
-        except (AssertionError, ValueError, KeyError, subprocess.CalledProcessError) as error:
+        except (AssertionError, ValueError, KeyError, OSError, subprocess.CalledProcessError) as error:
             return f"{case.__name__}: {error}"
     return None if got == want else f"{case.__name__}: got {got!r}, want {want!r}"
 

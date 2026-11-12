@@ -5,12 +5,13 @@ Purpose: build a fresh base (the remote feature branch with its remote parent
 merged in), rebase the worktree onto it, and after the review gate merge it
 with --no-ff and push, so a worktree reaches the feature branch only as one
 reviewed merge, and a push that lost a race loses nothing.
-Usage: run inside the worktree, or name it with --worktree PATH.
-  python3 merge_worktree.py [--worktree PATH] prepare [--parent BRANCH]
-  python3 merge_worktree.py [--worktree PATH] continue [--clash "PATH: WHY"]...
-  python3 merge_worktree.py [--worktree PATH] abort
-  python3 merge_worktree.py [--worktree PATH] land --tip SHA [--title TEXT]
-  python3 merge_worktree.py [--worktree PATH] cleanup [--drop-ignored]
+Usage: run inside the worktree, or name it with --worktree PATH. Run the file
+itself, not through python3, so one narrow permission rule can approve it.
+  merge_worktree.py [--worktree PATH] prepare [--parent BRANCH]
+  merge_worktree.py [--worktree PATH] continue [--clash "PATH: WHY"]...
+  merge_worktree.py [--worktree PATH] abort
+  merge_worktree.py [--worktree PATH] land --tip SHA [--title TEXT] [--no-verify]
+  merge_worktree.py [--worktree PATH] cleanup
 Output: one JSON object. `status` is one of refused, needs-parent, conflict,
 merged, ready, aborted, stale, rejected, landed, removed or removing; with
 `problem`, `warnings`, and the facts each status needs. Exit 0 unless the
@@ -32,6 +33,7 @@ import sys
 
 STATE = "merge-worktree.json"
 FINISH_LOG = "merge-worktree-finish.log"
+FINISH_JOB = "merge-worktree-finish.json"
 TRAILER = "Clash-resolved"
 NETWORK = 120
 MIN_GIT = (2, 32)
@@ -141,6 +143,17 @@ def changed(*flags: str) -> list[tuple[str, str]]:
 
 def dirty() -> list[str]:
     return [path for _, path in changed("--untracked-files=all")]
+
+
+def nested_repos(root: str, folders: list[str]) -> list[str]:
+    """Repositories and worktrees inside these ignored folders; removing the worktree would lose their work."""
+    found = []
+    for folder in folders:
+        for here, dirs, files in os.walk(os.path.join(root, folder)):
+            if ".git" in dirs or ".git" in files:
+                found.append(os.path.relpath(here, root) + "/")
+                dirs.clear()
+    return found
 
 
 def unmerged() -> list[str]:
@@ -348,6 +361,9 @@ def resume(repo: Repo, args) -> dict:
 
 def abort(repo: Repo, _args) -> dict:
     state, stopped = repo.load(), repo.stopped()
+    # Only a conflict prepare stopped on is ours to throw away; any other merge or rebase is the user's.
+    if state.get("phase") not in ("base", "rebase"):
+        raise Stop("refused", "nothing to abort: no prepare is stopped on a conflict here")
     branch = own_branch(repo, state) if state.get("branch") else None
     if stopped:
         run(stopped, "--abort")
@@ -372,7 +388,11 @@ def land(repo: Repo, args) -> dict:
     merge = git("commit-tree", f"{tip}^{{tree}}", "-p", base, "-p", tip, "-m", title)
     target = f"refs/heads/{spot['upstream']}"
     # The lease makes the push land only on the remote commit the packet was built from.
-    pushed = run("push", "--porcelain", f"--force-with-lease={target}:{start}", END, spot["remote"],
+    # Skipping the hook needs proof it refused this packet; the user's yes to skip is asked for after that.
+    if args.no_verify and state.get("hook") != "pre-push":
+        raise Stop("refused", "--no-verify needs a land of this packet that the pre-push hook refused")
+    verify = ["--no-verify"] if args.no_verify else []
+    pushed = run("push", "--porcelain", *verify, f"--force-with-lease={target}:{start}", END, spot["remote"],
                  f"{merge}:{target}", network=True)
     if pushed.returncode:
         refs = [line.split("\t") for line in pushed.stdout.splitlines() if line.startswith("!")]
@@ -380,6 +400,10 @@ def land(repo: Repo, args) -> dict:
             repo.forget()
             raise Stop("rejected", f"{spot['remote']}/{spot['upstream']} moved since the packet; "
                                    "run prepare again and review the new packet")
+        # A pre-push hook stops the push before git reports any ref; a remote refusal reports each ref.
+        if not (args.no_verify or pushed.stdout.strip()) and os.access(git("rev-parse", "--git-path", "hooks/pre-push"), os.X_OK):
+            repo.save(**state, hook="pre-push")
+            raise Stop("refused", f"the pre-push hook refused the push: {why(pushed)}", hook="pre-push")
         raise Stop("refused", f"the push failed: {why(pushed)}")
     repo.forget()
     return {"status": "landed", "merge": merge, "feature": spot["feature"],
@@ -410,7 +434,7 @@ def herdr_workspace(main: str, path: str) -> str | None:
     return None
 
 
-def cleanup(repo: Repo, args) -> dict:
+def cleanup(repo: Repo, _args) -> dict:
     spot = where(repo, ask=False)
     fetch(spot, spot["upstream"])
     if not ancestor("HEAD", spot["start"]):
@@ -418,38 +442,55 @@ def cleanup(repo: Repo, args) -> dict:
     files = dirty()
     if files:
         raise Stop("refused", "the worktree has files that removing it would lose", files=files)
+    # Ignored files are rebuildable or copied in; they go with the worktree, and the result names them.
     ignored = [path for code, path in changed("--ignored=traditional") if code == "!!"]
-    if ignored and not args.drop_ignored:
-        raise Stop("refused", "removing the worktree deletes its ignored files; ask, then run cleanup --drop-ignored",
-                   files=ignored[:20])
+    nested = nested_repos(repo.root, [path for path in ignored if path.endswith("/")])
+    if nested:
+        raise Stop("refused", "ignored folders hold repositories or worktrees that removing it would lose",
+                   files=nested)
+    dropped = {"dropped": ignored[:20], "dropped_count": len(ignored)}
     main, path, branch = spot["main"], repo.root, spot["branch"]
     workspace = herdr_workspace(main, path)
     if workspace:
         # Removing the workspace ends this agent's own pane, so a detached process finishes the job.
         log = os.path.join(repo.common_dir, FINISH_LOG)
-        subprocess.Popen([sys.executable, os.path.abspath(__file__), "finish", f"--workspace={workspace}",
-                          f"--main={main}", f"--branch={branch}", f"--landed={spot['start']}", f"--log={log}"],
+        # finish reads its job from the repository, so a hand-run finish cannot name what it removes or writes.
+        with open(os.path.join(repo.common_dir, FINISH_JOB), "w", encoding="utf-8") as handle:
+            json.dump({"workspace": workspace, "branch": branch, "landed": spot["start"]}, handle)
+        subprocess.Popen([sys.executable, os.path.abspath(__file__), "finish", f"--main={main}"],
                          cwd=main, start_new_session=True,
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return {"status": "removing", "method": "herdr", "workspace": workspace, "branch": branch,
-                "path": path, "log": log}
+                "path": path, "log": log, **dropped}
     git("worktree", "remove", END, path, cwd=main)
     git("branch", "-D", END, branch, cwd=main)
-    return {"status": "removed", "method": "git", "branch": branch, "path": path}
+    return {"status": "removed", "method": "git", "branch": branch, "path": path, **dropped}
 
 
 def finish(args) -> dict:
-    removed = herdr("worktree", "remove", f"--workspace={args.workspace}", timeout=60)
+    """Close the workspace and delete the branch that cleanup queued in the main checkout's repository."""
+    common = git("rev-parse", "--path-format=absolute", "--git-common-dir", cwd=args.main)
+    try:
+        with open(os.path.join(common, FINISH_JOB), encoding="utf-8") as handle:
+            job = json.load(handle)
+        os.remove(os.path.join(common, FINISH_JOB))
+        workspace, branch, landed = job["workspace"], job["branch"], job["landed"]
+    except (OSError, ValueError, KeyError, TypeError):
+        raise Stop("refused", "no cleanup is waiting to finish here")
+    removed = herdr("worktree", "remove", "--workspace", workspace, timeout=60)
     result = {"status": "refused", "herdr": why(removed) if removed else "herdr not found or timed out"}
     if removed and removed.returncode == 0:
         # A commit made after cleanup's check must not vanish with the branch.
-        if run("merge-base", "--is-ancestor", END, f"refs/heads/{args.branch}", args.landed, cwd=args.main).returncode:
-            result["branch"] = f"{args.branch} has commits that never landed, so it was kept"
+        if run("merge-base", "--is-ancestor", END, f"refs/heads/{branch}", landed, cwd=args.main).returncode:
+            result["branch"] = f"{branch} has commits that never landed, so it was kept"
         else:
-            deleted = run("branch", "-D", END, args.branch, cwd=args.main)
+            deleted = run("branch", "-D", END, branch, cwd=args.main)
             result.update(status="removed" if deleted.returncode == 0 else "refused", branch=why(deleted))
-    with open(args.log, "w", encoding="utf-8") as handle:
+    # Written whole, then moved into place, so a reader never sees a half-written log.
+    log = os.path.join(common, FINISH_LOG)
+    with open(f"{log}.tmp", "w", encoding="utf-8") as handle:
         json.dump(result, handle)
+    os.replace(f"{log}.tmp", log)
     return result
 
 
@@ -466,11 +507,10 @@ def main() -> int:
     land_cmd = commands.add_parser("land", help="merge with --no-ff and push, after the review gate")
     land_cmd.add_argument("--tip", required=True, help="the `tip` from the packet the user approved")
     land_cmd.add_argument("--title", help="the merge commit's subject, after the branch name")
-    cleanup_cmd = commands.add_parser("cleanup", help="remove the worktree and its branch, once landed")
-    cleanup_cmd.add_argument("--drop-ignored", action="store_true", help="delete ignored files with the worktree")
+    land_cmd.add_argument("--no-verify", action="store_true", help="skip the pre-push hook, when the user approved it")
+    commands.add_parser("cleanup", help="remove the worktree, its ignored files and its branch, once landed")
     finish_cmd = commands.add_parser("finish")
-    for name in ("--workspace", "--main", "--branch", "--landed", "--log"):
-        finish_cmd.add_argument(name, required=True)
+    finish_cmd.add_argument("--main", required=True)
     args = parser.parse_args()
     try:
         if args.command == "finish":

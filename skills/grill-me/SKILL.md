@@ -39,7 +39,7 @@ Always do these steps in order, even when the interview was skipped. Run this sk
    - Definition of done - the success criteria, stated verifiably.
    - A plan with more than one concern becomes one plan per concern; ask which goes first.
 2. **Choose where.** Run `new_worktree.py --check`. When `offer` is true and the plan expects about 400 changed lines or touches a second top-level folder, ask via picker: **In a new worktree (Recommended)** / **Here**.
-3. **Record the spec and plan** before any other change, with a two to six word topic. A host's plan mode blocks writes: there, show the plan, go to step 5, and record right after Proceed. A pair then handed to a new worktree is confirmed again there, now as files.
+3. **Record the spec and plan** before any other change, with a two to six word topic. A host's plan mode blocks writes: there, show the plan, go to step 5, and record right after Proceed. A pair handed to a new worktree is confirmed in that worktree's session, not in this one, now as files.
    - Here: `next_version.py --topic "Order Export"`.
    - In a new worktree: `new_worktree.py --topic "Order Export" --agent <this host, such as claude or codex>`. It reserves the version, creates the worktree, and prints the pair's paths inside its `path`.
    - The pair goes in GitHub Spec Kit's per-feature folder shape with a padded `v` number: `specs/v007-order-export/spec.md` and `plan.md`.
@@ -50,7 +50,7 @@ Always do these steps in order, even when the interview was skipped. Run this sk
      - When research ran, have it save `research.md` in the same folder, and link it from `spec`.
    - Follow the repository's own spec rules where it has them; when it keeps spec folders elsewhere, pass `--dir` to `next_version.py`.
 4. **Hand off** a pair written to a new worktree, so the gate and the work happen there:
-   - When `method` is `herdr`, run `handoff` if set, which starts an agent in the worktree's Herdr workspace. Tell the user to switch to workspace `vN`, and stop.
+   - When `method` is `herdr` and `handoff` is set, run it yourself with your shell tool right after writing the pair, before any gate here. It starts an agent in the worktree's Herdr workspace. Never print it for the user to run; print it, with the error, only when it fails. Then tell the user to switch to workspace `vN`, and stop.
    - Otherwise move with the host's worktree tool, such as Claude Code's `EnterWorktree` with the `path`. With none, print `cd <path>` and stop.
    - A session asked to resume a recorded pair skips the interview, reads both files, and goes to step 5.
 5. **Confirm (hard gate).** Point to the `spec` and `plan` files and summarize them in a few lines, so the user reads the files themselves. STOP - no other writes, edits, or commands. Ask via picker:

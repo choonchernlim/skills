@@ -1,6 +1,7 @@
 ---
 name: review-feature
 description: Reviews everything merged into a feature branch since its last review as one change, with simplify and architecture reviewers plus dead-code and docs reviewers when the range needs them, then pushes the approved fixes. Use before opening a feature branch's pull request, after its worktrees have merged, or when asked to review a feature branch as a whole.
+model: opus
 ---
 
 # Review Feature

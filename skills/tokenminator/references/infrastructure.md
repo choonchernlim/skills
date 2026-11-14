@@ -5,7 +5,7 @@ Type: how-to
 
 # Infrastructure Checks
 
-Audience: the agent fixing a Terraform finding.
+> **Audience:** the agent fixing a Terraform finding.
 
 When a deploy pipeline is the only test, every mistake costs a full round
 trip. Most mistakes can be caught offline, in seconds, with no credentials.

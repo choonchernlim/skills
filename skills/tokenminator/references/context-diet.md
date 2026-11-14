@@ -5,7 +5,7 @@ Type: how-to
 
 # Context Diet
 
-Audience: the agent fixing a skill, read-deny, or configuration finding.
+> **Audience:** the agent fixing a skill, read-deny, or configuration finding.
 
 Some context is paid for before the first prompt. Other context is paid for
 by one careless read. This playbook removes both.
@@ -24,19 +24,19 @@ by one careless read. This playbook removes both.
 
 ## Codes This Fixes
 
-| Code | Fix |
+| Fix | Clears |
 | --- | --- |
-| `SKILL-DUP` | Replace the second copy with a relative link. |
-| `SKILL-LINK` | Give both agents the skill, through per-skill relative links. |
-| `SKILL-DEAD` | Repoint the link at the renamed skill, or delete the link. |
-| `SKILL-BUDGET` | Move skills to the folder they serve, or delete unused ones. |
-| `SKILL-DESC` | Shorten the description and lead with trigger words. |
-| `DENY-MISSING` | Add a `Read(...)` deny for the file. |
-| `DENY-DEAD` | Remove or correct the pattern. |
-| `DENY-SEARCH` | List the file in the root `.ignore`. |
-| `CFG-CAP` | Set the output cap in each agent's project config. |
-| `CFG-PARSE` | Repair the JSON; a broken file disables its hooks and denies. |
-| `SRC-LARGE` | Split the file, or ship the outline tool so agents read one range. |
+| Replace the second copy with a relative link. | `SKILL-DUP` |
+| Give both agents the skill, through per-skill relative links. | `SKILL-LINK` |
+| Repoint the link at the renamed skill, or delete the link. | `SKILL-DEAD` |
+| Move skills to the folder they serve, or delete unused ones. | `SKILL-BUDGET` |
+| Shorten the description and lead with trigger words. | `SKILL-DESC` |
+| Add a `Read(...)` deny for the file. | `DENY-MISSING` |
+| Remove or correct the pattern. | `DENY-DEAD` |
+| List the file in the root `.ignore`. | `DENY-SEARCH` |
+| Set the output cap in each agent's project config. | `CFG-CAP` |
+| Repair the JSON; a broken file disables its hooks and denies. | `CFG-PARSE` |
+| Split the file, or ship the outline tool so agents read one range. | `SRC-LARGE` |
 
 Run `python3 scripts/audit_tokens.py <repo> --fix` first. It applies
 `DENY-MISSING`, `DENY-SEARCH`, and `CFG-CAP` without judgement. Naming the

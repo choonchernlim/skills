@@ -5,7 +5,7 @@ Type: how-to
 
 # Check Runner
 
-Audience: the agent building or adapting a project's check entry point.
+> **Audience:** the agent building or adapting a project's check entry point.
 
 Validation is the most repeated work in a session. This skill ships a runner
 that meets the contract below. The project supplies its checks as data.
@@ -15,7 +15,7 @@ that meets the contract below. The project supplies its checks as data.
 - [Codes This Fixes](#codes-this-fixes)
 - [Install the Runner](#install-the-runner)
 - [The Contract](#the-contract)
-- [Report Findings, Not Logs](#report-findings-not-logs)
+- [Report Findings Not Logs](#report-findings-not-logs)
 - [Define Each Check Once](#define-each-check-once)
 - [Traps Found in Practice](#traps-found-in-practice)
 - [Verify](#verify)
@@ -71,7 +71,7 @@ The runner has no pinned-tools file. It verifies `requires` from
 Exit code 2 matters. It tells the agent to repair the environment, not the
 code.
 
-## Report Findings, Not Logs
+## Report Findings Not Logs
 
 The last lines of a log rarely explain a failure. Parse each tool's machine
 format into findings, and print the first few under the `[FAIL]` line.

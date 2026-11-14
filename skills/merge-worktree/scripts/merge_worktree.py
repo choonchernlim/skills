@@ -505,7 +505,7 @@ def main() -> int:
                             help="one judgment call, recorded as a Clash-resolved trailer")
     commands.add_parser("abort", help="stop a prepare that hit a conflict, and go back to the branch")
     land_cmd = commands.add_parser("land", help="merge with --no-ff and push, after the review gate")
-    land_cmd.add_argument("--tip", required=True, help="the `tip` from the packet the user approved")
+    land_cmd.add_argument("--tip", required=True, help="the `tip` from the packet")
     land_cmd.add_argument("--title", help="the merge commit's subject, after the branch name")
     land_cmd.add_argument("--no-verify", action="store_true", help="skip the pre-push hook, when the user approved it")
     commands.add_parser("cleanup", help="remove the worktree, its ignored files and its branch, once landed")

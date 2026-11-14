@@ -5,7 +5,7 @@ Type: how-to
 
 # Instruction Files
 
-Audience: the agent fixing an instruction-file finding.
+> **Audience:** the agent fixing an instruction-file finding.
 
 Both agents need the same short, accurate instructions at session start.
 This playbook gives one source of truth and keeps it from drifting.
@@ -24,18 +24,18 @@ This playbook gives one source of truth and keeps it from drifting.
 
 ## Codes This Fixes
 
-| Code | Fix |
+| Fix | Clears |
 | --- | --- |
-| `AGT-MISSING` | Create a root `AGENTS.md`. |
-| `CLD-IMPORT` | Add a `CLAUDE.md` with one import line beside each `AGENTS.md`, or remove every Claude file. |
-| `CLD-FORK` | Move shared rules out of `CLAUDE.md` into `AGENTS.md`. |
-| `CLD-RULE` | Add `paths:` frontmatter, or move a shared rule into `AGENTS.md`. |
-| `CLD-COMPACT` | Add a Compact Instructions section to `CLAUDE.md`, or to `AGENTS.md` when there is no `CLAUDE.md`. |
-| `ORIENT-MISSING` | Add the orientation section. |
-| `DNR-MISSING`, `DNR-UNLISTED` | Add or extend the Do Not Read section. |
-| `PATH-DEAD` | Correct or remove the path. |
-| `INS-LONG` | Move detail into docs and link to them. |
-| `RULES-MISSING`, `RULES-OUTDATED`, `RULES-EDITED` | Run `--fix-rules-block`. |
+| Create a root `AGENTS.md`. | `AGT-MISSING` |
+| Add a `CLAUDE.md` with one import line beside each `AGENTS.md`, or remove every Claude file. | `CLD-IMPORT` |
+| Move shared rules out of `CLAUDE.md` into `AGENTS.md`. | `CLD-FORK` |
+| Add `paths:` frontmatter, or move a shared rule into `AGENTS.md`. | `CLD-RULE` |
+| Add a Compact Instructions section to `CLAUDE.md`, or to `AGENTS.md` when there is no `CLAUDE.md`. | `CLD-COMPACT` |
+| Add the orientation section. | `ORIENT-MISSING` |
+| Add or extend the Do Not Read section. | `DNR-MISSING`, `DNR-UNLISTED` |
+| Correct or remove the path. | `PATH-DEAD` |
+| Move detail into docs and link to them. | `INS-LONG` |
+| Run `--fix-rules-block`. | `RULES-MISSING`, `RULES-OUTDATED`, `RULES-EDITED` |
 
 Run `python3 scripts/audit_tokens.py <repo> --fix` first. It writes a
 `CLAUDE.md` bridge beside each `AGENTS.md` that a Claude file hides, the
@@ -50,7 +50,7 @@ Put every shared instruction in `AGENTS.md`, then pick one layout:
 
 | Layout | Use when |
 | --- | --- |
-| `AGENTS.md` only | No Claude-only notes, and Claude Code is 2.1.277 or later (2.1.281 on Bedrock, Vertex, or with telemetry off). |
+| `AGENTS.md` only | No Claude-only notes, and Claude Code reads `AGENTS.md` natively (see [Claude Code facts](claude-code.md#instruction-files)). |
 | A `CLAUDE.md` holding `@AGENTS.md` beside every `AGENTS.md` | Claude-only notes, older Claude Code, `InstructionsLoaded` hooks, or `--add-dir` folders. |
 
 Never mix them: Claude skips an `AGENTS.md` that no `CLAUDE.md` imports.

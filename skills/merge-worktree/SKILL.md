@@ -8,7 +8,7 @@ allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/merge_worktree.py *)
 
 Bring one finished worktree into its feature branch as a single reviewed merge. Run it inside the worktree; it pushes to the remote feature branch, so the feature checkout is never touched.
 
-Run `<this skill's folder>/scripts/merge_worktree.py <command>` as the whole Bash command, so the skill's pre-approval matches it: no `python3`, `cd`, environment variables, pipes or redirects; `--worktree <path>` acts on another folder. Single-quote `--title` and `--clash` values. Each command prints JSON with a `status`; relay any `problem` and `warnings`. Approval at gate ② covers that one merge commit and its push, and nothing else; any later run needs a new approval. Skipping the pre-push hook needs its own yes.
+Run `<this skill's folder>/scripts/merge_worktree.py <command>` as the whole Bash command, so the skill's pre-approval matches it: no `python3`, `cd`, environment variables, pipes or redirects; `--worktree <path>` acts on another folder. Single-quote `--title` and `--clash` values. Each command prints JSON with a `status`; relay any `problem` and `warnings`. Running this skill approves its one merge commit, its push and the cleanup, and nothing else; it asks for approval only when step 4 finds a red flag, and any later run needs a new approval. Skipping the pre-push hook needs its own yes.
 
 ## Steps
 
@@ -25,8 +25,8 @@ Run `<this skill's folder>/scripts/merge_worktree.py <command>` as the whole Bas
    - When a conflict needs the user's intent, run `abort` and ask.
 3. **Check and review.** On the rebased branch, run the project's checks and the review passes your instructions require.
    - Fix confirmed findings and commit, then run `prepare` again so the packet matches HEAD.
-4. **Show the packet (gate ②).** One message, so the user can judge the worktree without opening anything else:
-   - where it goes: `feature`, pushed to `target`, and the `tip` being approved
+4. **Report, or stop on a red flag (gate ②).** One message, so the user can judge the worktree, or read the record of a clean run, without opening anything else:
+   - where it goes: `feature`, pushed to `target`, and the `tip` to land
    - the spec and plan in `pair`, or that none changed; say so when `open_steps` is not zero
    - the size: `commits`, `added` and `removed` lines, and the `files`
    - `parent_commits` arriving from the parent branch
@@ -34,13 +34,15 @@ Run `<this skill's folder>/scripts/merge_worktree.py <command>` as the whole Bas
    - every `clashes` line, word for word
    - how to verify it: what to run or open, and what the user should see
 
-   STOP. Ask via picker:
-   - **Approve and merge (Recommended)** - the only consent. On silence or an ambiguous reply, re-ask.
-   - **Give feedback** - revise, commit, and go back to step 1.
-   - **Cancel** - push nothing. The worktree stays, rebased onto the base.
-5. **Land.** Run `land --tip <the approved tip> --title '<topic from the spec>'`.
-   - **rejected** - another merge reached the feature branch first. Go back to step 1, say what changed in the new packet, and ask again.
-   - **stale** - the worktree is not the approved tip. Go back to step 1.
+   Red flags: a check failed or did not run, a review finding is still open, `clashes` is not empty, `open_steps` is not zero, or a `continue` warned that a conflict resolution dropped a commit.
+   - **No red flag** - invoking the skill was the approval. Print the packet and go to step 5 without asking.
+   - **Any red flag** - name it, then STOP. Ask via picker:
+     - **Approve and merge** - the only consent once a red flag shows. On silence or an ambiguous reply, re-ask.
+     - **Give feedback** - revise, commit, and go back to step 1.
+     - **Cancel** - push nothing. The worktree stays, rebased onto the base.
+5. **Land.** Run `land --tip <the packet's tip> --title '<topic from the spec>'`.
+   - **rejected** - another merge reached the feature branch first. Go back to step 1, say what changed in the new packet, and apply step 4 again.
+   - **stale** - the worktree is not the packet's tip. Go back to step 1.
    - **refused** - relay the `problem`. The packet still stands, so `land` may be retried once the cause is fixed. When it carries `hook`, the pre-push hook refused the push: relay its output and ask via picker, **Fix the cause (Recommended)** / **Land, skipping the hook**. Only that answer reruns `land` with `--no-verify`; on silence or an ambiguous reply, re-ask. Never turn hooks off any other way.
    - **landed** - report the `merge` commit and where it was `pushed`. The feature checkout is now behind; `git pull --ff-only` there catches it up.
 6. **Clean up, last, without asking.** Report first: `cleanup` removes this folder with its ignored files, and under Herdr it closes this workspace with its agent. Relay `dropped` and `dropped_count` as soon as it returns; under Herdr this agent may close next.

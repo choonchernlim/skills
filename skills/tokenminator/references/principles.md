@@ -5,7 +5,7 @@ Type: explanation
 
 # Principles
 
-Audience: the agent deciding which finding to fix first.
+> **Audience:** the agent deciding which finding to fix first.
 
 Tokens are spent in four places. Each playbook removes one of them with
 configuration or a script, so the saving does not depend on model behavior.

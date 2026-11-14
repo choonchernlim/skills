@@ -5,7 +5,7 @@ Type: reference
 
 # Codex Facts
 
-Audience: the agent applying a playbook, before it relies on tool behavior.
+> **Audience:** the agent about to rely on Codex tool behavior in a playbook.
 
 Trust a row until it fails in practice or `audit_tokens.py` reports
 `FACT-STALE`. Rows marked `unverified` are assumptions to confirm first.
@@ -32,6 +32,7 @@ no local Codex binary was available to confirm it.
 
 ## Instruction Files
 
+<!-- frozen: each row records the version its fact was verified on -->
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
 | CX-01 | Codex loads `AGENTS.md` natively: the global file, then one per folder from the repository root to the launch folder. | 2026-10-25 | docs | learn.chatgpt.com/docs/agent-configuration/agents-md |
@@ -42,6 +43,7 @@ no local Codex binary was available to confirm it.
 
 ## Skills
 
+<!-- frozen: each row records the version its fact was verified on -->
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
 | CX-05 | Codex reads `.agents/skills` in every folder from the launch folder to the repository root, then `~/.agents/skills`. | 2026-10-25 | docs | learn.chatgpt.com/docs/build-skills |
@@ -53,6 +55,7 @@ no local Codex binary was available to confirm it.
 
 ## Hooks and Configuration
 
+<!-- frozen: each row records the version its fact was verified on -->
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
 | CX-10 | Hooks live in `hooks.json` or under `[hooks]` in `config.toml`, in `~/.codex/` for the user and `.codex/` for a project. | 2026-10-25 | docs | learn.chatgpt.com/docs/hooks |

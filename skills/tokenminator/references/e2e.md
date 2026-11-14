@@ -5,7 +5,7 @@ Type: how-to
 
 # Scripted Browser Tests
 
-Audience: the agent fixing a Playwright or browser MCP finding.
+> **Audience:** the agent fixing a Playwright or browser MCP finding.
 
 Driving a browser through an MCP server returns a page snapshot on every
 step. A scripted test costs tokens once, when it is written.

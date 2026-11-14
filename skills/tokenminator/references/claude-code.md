@@ -5,7 +5,7 @@ Type: reference
 
 # Claude Code Facts
 
-Audience: the agent applying a playbook, before it relies on tool behavior.
+> **Audience:** the agent applying a playbook, before it relies on tool behavior.
 
 Trust a row until it fails in practice or `audit_tokens.py` reports
 `FACT-STALE`. Then re-verify that one row, not the whole file.
@@ -33,6 +33,7 @@ playbook step depends on it.
 
 ## Instruction Files
 
+<!-- frozen: each row records the version its fact was verified on -->
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
 | CC-01 | Claude Code reads `AGENTS.md` only while no `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md` is in the launch folder or above. | 2026-10-26 | 2.1.310 | code.claude.com/docs/en/memory; tested: `claude -p` probe repositories, including a parent folder |
@@ -52,6 +53,7 @@ playbook step depends on it.
 
 ## Skills
 
+<!-- frozen: each row records the version its fact was verified on -->
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
 | CC-05 | Project skills load from `.claude/skills/` in the launch folder and every parent up to the repository root. | 2026-10-25 | 2.1.310 | code.claude.com/docs/en/skills |
@@ -63,6 +65,7 @@ playbook step depends on it.
 
 ## Permissions
 
+<!-- frozen: each row records the version its fact was verified on -->
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
 | CC-10 | `Read(...)` deny rules use gitignore patterns: `/x` is project root, `//x` is absolute, a bare name matches at any depth. | 2026-10-25 | 2.1.310 | code.claude.com/docs/en/permissions |
@@ -72,6 +75,7 @@ playbook step depends on it.
 
 ## Hooks and MCP
 
+<!-- frozen: each row records the version its fact was verified on -->
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
 | CC-14 | Project hooks live under `hooks` in `.claude/settings.json`. `Stop` input carries `stop_hook_active` to prevent loops. | 2026-09-19 | 2.1.277 | code.claude.com/docs/en/hooks |
@@ -84,6 +88,7 @@ playbook step depends on it.
 
 ## Output and Search
 
+<!-- frozen: each row records the version its fact was verified on -->
 | ID | Fact | Verified | Version | Source |
 | --- | --- | --- | --- | --- |
 | CC-21 | `bashOutputMaxChars` defaults to 30,000 and clamps to 4,000-128,000. Overflow goes to a file; Claude gets a preview and the path. | 2026-10-25 | 2.1.310 | code.claude.com/docs/en/settings-reference |

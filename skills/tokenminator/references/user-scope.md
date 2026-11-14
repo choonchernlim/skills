@@ -5,7 +5,7 @@ Type: how-to
 
 # User Scope
 
-Audience: the agent reporting a `USR-` finding.
+> **Audience:** the agent reporting a `USR-` finding.
 
 The user scope is the config every session loads in every repository: files
 under the home folder, and Claude files in folders above the repository. The

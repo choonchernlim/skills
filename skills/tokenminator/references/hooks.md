@@ -5,7 +5,7 @@ Type: how-to
 
 # Shared Hooks
 
-Audience: the agent fixing a hook finding.
+> **Audience:** the agent fixing a hook finding.
 
 Hooks run the check entry point without the model asking. The agent sees a
 short result, and both agents behave the same way.
